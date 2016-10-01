@@ -67,26 +67,20 @@ func slackRequestHandler(w http.ResponseWriter, r *http.Request) {
 
 	var slackResponse SlackResponse
 	var attachments []Attachment
-
-	err := r.ParseForm()
-
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		slackResponse.Text = "There was an error parsing input data"
-	}
-
 	var slackRequest = new(SlackRequest)
 	decoder := schema.NewDecoder()
-	err = decoder.Decode(slackRequest, r.PostForm)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		slackResponse.Text = "There was an error decoding input data"
-	}
 
-	if !isTokenValid(slackRequest.Token) {
+	if err := r.ParseForm(); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		slackResponse.Text = "There was an error parsing input data"
+	} else if err := decoder.Decode(slackRequest, r.PostForm); err != nil {
+		println("Decoding error")
+		w.WriteHeader(http.StatusBadRequest)
+		slackResponse.Text = "Request provided coudln't be decoded"
+	} else if !isTokenValid(slackRequest.Token) {
+		println("Invalid token")
 		w.WriteHeader(http.StatusUnauthorized)
 		slackResponse.Text = "Unauthorised"
-
 	} else {
 		if isUpdateNeeded() {
 			if err := updateStatusInformation(); err != nil {
@@ -146,7 +140,7 @@ func isUpdateNeeded() bool {
 }
 
 func updateStatusInformation() error {
-	url := "https://api.tfl.gov.uk/line/mode/tube/tflResponse"
+	url := "https://api.tfl.gov.uk/line/mode/tube/status"
 
 	res, err := http.Get(url)
 	if err != nil {

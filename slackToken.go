@@ -24,11 +24,6 @@ func loadAuthorisedTokensFromFile(path string) {
 	for scanner.Scan() {
 		authorisedTokenSet = append(authorisedTokenSet, scanner.Text())
 	}
-
-	fmt.Println("Loaded token configuration:")
-	for tokenId := range authorisedTokenSet {
-		fmt.Printf("Token[%d]: %s\n", tokenId, authorisedTokenSet[tokenId])
-	}
 }
 
 func addSlackToken(token string) {
