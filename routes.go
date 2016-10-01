@@ -24,8 +24,11 @@ func newRouter() *mux.Router {
 			Methods(route.Methods...).
 			Path(route.Pattern).
 			Name(route.Name).
-			Handler(route.HandlerFunc)
+			HandlerFunc(route.HandlerFunc)
 	}
+
+	// Additional route for Prometheus instrumentation
+	router.Methods(http.MethodGet).Path("/metrics").Handler(prometheus.Handler())
 
 	return router
 }
@@ -54,11 +57,5 @@ var routes = Routes{
 		[]string{http.MethodPut, http.MethodDelete},
 		"/api/slack/token/{token}",
 		slackTokenRequestHandler,
-	},
-	Route{
-		"Prometheus Metrics",
-		[]string{http.MethodGet},
-		"/metrics",
-		prometheus.Handler(),
 	},
 }
