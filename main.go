@@ -7,13 +7,21 @@ import (
 	"time"
 
 	"github.com/rs/cors"
+	"os"
 )
 
 var lastStatusCheck time.Time
 
-const listenPort string = "1123"
+var listenPort = os.Getenv("PORT")
+
+const defaultPort = "1123"
 
 func init() {
+
+	if listenPort == "" {
+		listenPort = defaultPort
+	}
+
 	var err error
 	lastStatusCheck, err = time.Parse(time.RFC3339, "1970-01-01T00:00:00+00:00")
 	if err != nil {
