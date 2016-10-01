@@ -1,4 +1,4 @@
-Travis CI: [![Build Status](https://travis-ci.org/thoeni/slack-tube-service.svg?branch=master)](https://travis-ci.org/thoeni/slack-tube-service) Circle CI: [![CircleCI](https://circleci.com/gh/thoeni/slack-tube-service.svg?style=svg)](https://circleci.com/gh/thoeni/slack-tube-service)
+Travis CI: [![Build Status](https://travis-ci.org/thoeni/slack-tube-service.svg?branch=master)](https://travis-ci.org/thoeni/slack-tube-service) Circle CI: [![CircleCI](https://circleci.com/gh/thoeni/slack-tube-service.svg?style=svg)](https://circleci.com/gh/thoeni/slack-tube-service) Coveralls: [![Coverage Status](https://coveralls.io/repos/github/thoeni/slack-tube-service/badge.svg?branch=master)](https://coveralls.io/github/thoeni/slack-tube-service?branch=master)
 
 # Build & Run
 
