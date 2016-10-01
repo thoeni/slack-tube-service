@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type Route struct {
@@ -53,5 +54,11 @@ var routes = Routes{
 		[]string{http.MethodPut, http.MethodDelete},
 		"/api/slack/token/{token}",
 		slackTokenRequestHandler,
+	},
+	Route{
+		"Prometheus Metrics",
+		[]string{http.MethodGet},
+		"/metrics",
+		prometheus.Handler(),
 	},
 }
