@@ -1,3 +1,12 @@
+test:
+  pre:
+    - go get golang.org/x/tools/cmd/cover
+    - go get github.com/mattn/goveralls
+  override:
+    - go test -v -covermode=count -coverprofile=coverage.out
+  post:
+    - $GOPATH/bin/goveralls -coverprofile=coverage.out -service=circle-ci -repotoken $COVERALLS_REPO_TOKEN
+
 deployment:
   production:
     branch: master
