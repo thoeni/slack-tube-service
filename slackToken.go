@@ -29,7 +29,7 @@ func (b BoltTokenStore) reloadAuthorisedTokens() {
 
 	authorisedTokenSet = make([]string, 0)
 
-	b.boltDB.View(func(tx *bolt.Tx) error {
+	if err := b.boltDB.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("token"))
 		c := b.Cursor()
 
@@ -38,7 +38,9 @@ func (b BoltTokenStore) reloadAuthorisedTokens() {
 		}
 
 		return nil
-	})
+	}); err != nil {
+		log.Print("Transaction rolled back -> ", err)
+	}
 }
 
 func (b BoltTokenStore) addSlackToken(token string) {
