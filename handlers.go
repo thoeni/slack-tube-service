@@ -128,9 +128,9 @@ func slackTokenRequestHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	switch r.Method {
 	case http.MethodPut:
-		addSlackToken(token)
+		tokenStore.addSlackToken(token)
 	case http.MethodDelete:
-		deleteSlackToken(token)
+		tokenStore.deleteSlackToken(token)
 	}
 	w.WriteHeader(http.StatusAccepted)
 }

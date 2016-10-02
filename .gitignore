@@ -3,3 +3,4 @@ slack-tube-service
 tokens.txt
 coverage.out
 /bin
+*.db
