@@ -3,29 +3,30 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/boltdb/bolt"
 	"log"
 	"os"
 	"regexp"
+
+	"github.com/boltdb/bolt"
 )
 
 var authorisedTokenSet []string
 
-type TokenStorer interface {
+type tokenStorer interface {
 	reloadAuthorisedTokens()
 	addSlackToken(token string)
 	deleteSlackToken(token string)
 	close()
 }
 
-type BoltTokenStore struct {
+type boltTokenStore struct {
 	boltDB *bolt.DB
 }
-type FileTokenStore struct {
+type fileTokenStore struct {
 	file *os.File
 }
 
-func (b BoltTokenStore) reloadAuthorisedTokens() {
+func (b boltTokenStore) reloadAuthorisedTokens() {
 
 	authorisedTokenSet = make([]string, 0)
 
@@ -43,7 +44,7 @@ func (b BoltTokenStore) reloadAuthorisedTokens() {
 	}
 }
 
-func (b BoltTokenStore) addSlackToken(token string) {
+func (b boltTokenStore) addSlackToken(token string) {
 
 	fmt.Println("Received request to add new token:", token)
 
@@ -57,7 +58,7 @@ func (b BoltTokenStore) addSlackToken(token string) {
 	b.reloadAuthorisedTokens()
 }
 
-func (b BoltTokenStore) deleteSlackToken(token string) {
+func (b boltTokenStore) deleteSlackToken(token string) {
 
 	fmt.Println("Received request to delete token:", token)
 
@@ -71,7 +72,7 @@ func (b BoltTokenStore) deleteSlackToken(token string) {
 	b.reloadAuthorisedTokens()
 }
 
-func (b BoltTokenStore) close() {
+func (b boltTokenStore) close() {
 	b.boltDB.Close()
 }
 
@@ -84,8 +85,9 @@ func validateToken(token string) error {
 }
 
 func isTokenValid(token string) bool {
-	for authTokenId := range authorisedTokenSet {
-		if token == authorisedTokenSet[authTokenId] {
+	fmt.Printf("Token is: %v. Auth token set is: %v", token, authorisedTokenSet)
+	for authTokenID := range authorisedTokenSet {
+		if token == authorisedTokenSet[authTokenID] {
 			return true
 		}
 	}
