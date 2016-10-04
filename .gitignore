@@ -2,3 +2,6 @@ slack-tube-service
 .idea/*
 tokens.txt
 coverage.out
+/bin
+*.db
+tags

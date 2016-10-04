@@ -10,16 +10,16 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
-	"io"
+	"github.com/thoeni/go-tfl"
 )
 
 const minStatusPollPeriod = 2
 
-var statuses []Report
+var statuses []tfl.Report
 
 func lineStatusHandler(w http.ResponseWriter, r *http.Request) {
 
-	var response []Report
+	var response []tfl.Report
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
@@ -37,12 +37,12 @@ func lineStatusHandler(w http.ResponseWriter, r *http.Request) {
 
 	if !lineIsPresentInPath {
 		for _, line := range statuses {
-			response = append(response, mapTflLineToResponse(line))
+			response = append(response, line)
 		}
 	} else {
 		for _, line := range statuses {
 			if strings.ToLower(line.Name) == strings.ToLower(tubeLine) {
-				response = append(response, mapTflLineToResponse(line))
+				response = append(response, line)
 			}
 
 		}
@@ -65,35 +65,35 @@ func slackRequestHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
-	var slackResponse SlackResponse
-	var attachments []Attachment
-	var slackRequest = new(SlackRequest)
+	var slackResp slackResponse
+	var attachments []attachment
+	var slackReq = new(slackRequest)
 	decoder := schema.NewDecoder()
 
 	if err := r.ParseForm(); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		slackResponse.Text = "There was an error parsing input data"
-	} else if err := decoder.Decode(slackRequest, r.PostForm); err != nil {
+		slackResp.Text = "There was an error parsing input data"
+	} else if err := decoder.Decode(slackReq, r.PostForm); err != nil {
 		println("Decoding error")
 		w.WriteHeader(http.StatusBadRequest)
-		slackResponse.Text = "Request provided coudln't be decoded"
-	} else if !isTokenValid(slackRequest.Token) {
-		println("Invalid token")
+		slackResp.Text = "Request provided coudln't be decoded"
+	} else if !isTokenValid(slackReq.Token) {
+		fmt.Printf("Invalid token in request: %v from postForm: %v", slackReq, r.PostForm)
 		w.WriteHeader(http.StatusUnauthorized)
-		slackResponse.Text = "Unauthorised"
+		slackResp.Text = "Unauthorised"
 	} else {
 		if isUpdateNeeded() {
 			if err := updateStatusInformation(); err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
-				slackResponse.Text = "There was an error getting information from TFL"
+				slackResp.Text = "There was an error getting information from TFL"
 			}
 		}
 
-		tubeLine := strings.Join(slackRequest.Text, " ")
+		tubeLine := strings.Join(slackReq.Text, " ")
 
 		w.WriteHeader(http.StatusOK)
-		slackResponse.Response_type = "ephemeral"
-		slackResponse.Text = fmt.Sprintf("Slack Tube Service - last updated at %s", lastStatusCheck.Format("15:04:05"))
+		slackResp.ResponseType = "ephemeral"
+		slackResp.Text = fmt.Sprintf("Slack Tube Service - last updated at %s", lastStatusCheck.Format("15:04:05"))
 
 		if tubeLine == "" {
 			for _, line := range statuses {
@@ -107,14 +107,14 @@ func slackRequestHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			if len(attachments) == 0 {
 				w.WriteHeader(http.StatusNotFound)
-				slackResponse.Text = "Not a recognised line."
+				slackResp.Text = "Not a recognised line."
 			}
 		}
 
-		slackResponse.Attachments = attachments
+		slackResp.Attachments = attachments
 	}
 
-	if err := json.NewEncoder(w).Encode(slackResponse); err != nil {
+	if err := json.NewEncoder(w).Encode(slackResp); err != nil {
 		log.Panic(err)
 	}
 }
@@ -128,9 +128,9 @@ func slackTokenRequestHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	switch r.Method {
 	case http.MethodPut:
-		addSlackToken(token)
+		tokenStore.addSlackToken(token)
 	case http.MethodDelete:
-		deleteSlackToken(token)
+		tokenStore.deleteSlackToken(token)
 	}
 	w.WriteHeader(http.StatusAccepted)
 }
@@ -140,32 +140,13 @@ func isUpdateNeeded() bool {
 }
 
 func updateStatusInformation() error {
-	url := "https://api.tfl.gov.uk/line/mode/tube/status"
-
-	res, err := http.Get(url)
+	client := tfl.NewClient()
+	reports, err := client.GetTubeStatus()
 	if err != nil {
-		fmt.Println(err)
+		log.Print("Error while retrieving Tube statuses")
 		return err
 	}
-	defer res.Body.Close()
-
-	if statuses, err = decodeTflResponse(res.Body); err != nil {
-		return err
-	}
-
+	statuses = reports
 	lastStatusCheck = time.Now()
 	return nil
-}
-
-func decodeTflResponse(resp io.Reader) ([]Report, error) {
-	decoder := json.NewDecoder(resp)
-
-	var data []Report
-	err := decoder.Decode(&data)
-	if err != nil {
-		fmt.Println(err)
-		return nil, err
-	}
-
-	return data, nil
 }

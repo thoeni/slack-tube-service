@@ -1,72 +1,80 @@
 package main
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"log"
 	"os"
 	"regexp"
+
+	"github.com/boltdb/bolt"
 )
 
 var authorisedTokenSet []string
 
-const authorisedTokenFileLocation = "./tokens.txt"
+type tokenStorer interface {
+	reloadAuthorisedTokens()
+	addSlackToken(token string)
+	deleteSlackToken(token string)
+	close()
+}
 
-func loadAuthorisedTokensFromFile(path string) {
-	inFile, _ := os.Open(path)
-	defer inFile.Close()
-	scanner := bufio.NewScanner(inFile)
-	scanner.Split(bufio.ScanLines)
+type boltTokenStore struct {
+	boltDB *bolt.DB
+}
+type fileTokenStore struct {
+	file *os.File
+}
+
+func (b boltTokenStore) reloadAuthorisedTokens() {
 
 	authorisedTokenSet = make([]string, 0)
 
-	for scanner.Scan() {
-		authorisedTokenSet = append(authorisedTokenSet, scanner.Text())
-	}
-}
+	if err := b.boltDB.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("token"))
+		c := b.Cursor()
 
-func addSlackToken(token string) {
-	fmt.Println("Received request to add new token:", token)
-	addAuthorisedTokenToFile(authorisedTokenFileLocation, []string{token})
-	loadAuthorisedTokensFromFile(authorisedTokenFileLocation)
-}
-
-func deleteSlackToken(token string) {
-	fmt.Println("Received request to delete token:", token)
-	deleteAuthorisedTokenFromMemory(token)
-	go flushTokenSetToFile(authorisedTokenFileLocation)
-}
-
-func flushTokenSetToFile(path string) {
-	err := os.Remove(path)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	addAuthorisedTokenToFile(path, authorisedTokenSet)
-}
-
-func addAuthorisedTokenToFile(path string, token []string) {
-	inFile, _ := os.OpenFile(path, os.O_APPEND|os.O_RDWR|os.O_CREATE, 0666)
-	writer := bufio.NewWriter(inFile)
-	defer inFile.Close()
-
-	for i := range token {
-		fmt.Fprintln(writer, token[i])
-	}
-	writer.Flush()
-}
-
-func deleteAuthorisedTokenFromMemory(token string) {
-	max := len(authorisedTokenSet)
-	for i := 0; i < max; i++ {
-		if authorisedTokenSet[i] == token {
-			authorisedTokenSet = append(authorisedTokenSet[:i], authorisedTokenSet[i+1:]...)
-			max = len(authorisedTokenSet)
-			i--
+		for k, _ := c.First(); k != nil; k, _ = c.Next() {
+			authorisedTokenSet = append(authorisedTokenSet, string(k[:]))
 		}
+
+		return nil
+	}); err != nil {
+		log.Print("Transaction rolled back -> ", err)
 	}
+}
+
+// Doc example
+func (b boltTokenStore) addSlackToken(token string) {
+
+	fmt.Println("Received request to add new token:", token)
+
+	if err := b.boltDB.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("token"))
+		err := b.Put([]byte(token), []byte("enabled"))
+		return err
+	}); err != nil {
+		log.Print("Transaction rolled back -> ", err)
+	}
+	b.reloadAuthorisedTokens()
+}
+
+func (b boltTokenStore) deleteSlackToken(token string) {
+
+	fmt.Println("Received request to delete token:", token)
+
+	if err := b.boltDB.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("token"))
+		err := b.Delete([]byte(token))
+		return err
+	}); err != nil {
+		log.Print("Transaction rolled back -> ", err)
+	}
+	b.reloadAuthorisedTokens()
+}
+
+func (b boltTokenStore) close() {
+	b.boltDB.Close()
 }
 
 func validateToken(token string) error {
@@ -78,8 +86,9 @@ func validateToken(token string) error {
 }
 
 func isTokenValid(token string) bool {
-	for authTokenId := range authorisedTokenSet {
-		if token == authorisedTokenSet[authTokenId] {
+	fmt.Printf("Token is: %v. Auth token set is: %v", token, authorisedTokenSet)
+	for authTokenID := range authorisedTokenSet {
+		if token == authorisedTokenSet[authTokenID] {
 			return true
 		}
 	}

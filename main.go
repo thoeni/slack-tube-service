@@ -6,10 +6,12 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/boltdb/bolt"
 	"github.com/rs/cors"
 	"os"
 )
 
+var tokenStore tokenStorer
 var lastStatusCheck time.Time
 
 var listenPort = os.Getenv("PORT")
@@ -29,8 +31,40 @@ func init() {
 	}
 }
 
+func dbInit() error {
+
+	db, err := bolt.Open("slack-tube-service.db", 0600, &bolt.Options{Timeout: 1 * time.Second})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err := db.Update(func(tx *bolt.Tx) error {
+		_, err := tx.CreateBucketIfNotExists([]byte("token"))
+		if err != nil {
+			return fmt.Errorf("create bucket: %s", err)
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	tokenStore = boltTokenStore{boltDB: db}
+
+	return nil
+}
+
 func main() {
-	loadAuthorisedTokensFromFile(authorisedTokenFileLocation)
+
+	err := dbInit()
+	if err != nil {
+		log.Fatal("Couldn't initialise DB")
+	} else {
+		fmt.Printf("BoltDB initiliased (%v), bucket created!\n", tokenStore)
+	}
+
+	defer tokenStore.close()
+
+	tokenStore.reloadAuthorisedTokens()
 	router := newRouter()
 	fmt.Println("Ready, listening on port", listenPort)
 	log.Fatal(http.ListenAndServe(":"+listenPort, cors.Default().Handler(router)))
