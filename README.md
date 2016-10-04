@@ -1,4 +1,4 @@
-Build: [![CircleCI](https://circleci.com/gh/thoeni/slack-tube-service.svg?style=svg)](https://circleci.com/gh/thoeni/slack-tube-service) Test coverage: [![Coverage Status](https://coveralls.io/repos/github/thoeni/slack-tube-service/badge.svg?branch=master)](https://coveralls.io/github/thoeni/slack-tube-service?branch=master)
+Build: [![CircleCI](https://circleci.com/gh/thoeni/slack-tube-service.svg?style=svg)](https://circleci.com/gh/thoeni/slack-tube-service)
 
 # Build & Run
 
@@ -43,3 +43,6 @@ Connect to that IP, port ```1123```.
 
 ### This is what the integration looks like:
 ![Slack Integration](http://www.antoniotroina.com/downloads/tube.png)
+
+#What if I just want to use it?
+This project is still experimental but it works, and if you want to try this integration for free just drop me an email and I'll get in touch.
