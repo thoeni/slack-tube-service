@@ -1,5 +1,7 @@
 package main
 
+import "github.com/thoeni/go-tfl"
+
 type slackResponse struct {
 	Text         string       `json:"text"`
 	ResponseType string       `json:"response_type"`
@@ -14,7 +16,7 @@ type attachment struct {
 	MrkdwnIn []string `json:"mrkdwn_in"`
 }
 
-func mapTflLineToSlackAttachment(r report) attachment {
+func mapTflLineToSlackAttachment(r tfl.Report) attachment {
 	var slackAttachment attachment
 	slackAttachment.Text = createSlackText(r)
 	slackAttachment.Color = mapLineNameToHexColor(r.Name)
@@ -22,7 +24,7 @@ func mapTflLineToSlackAttachment(r report) attachment {
 	return slackAttachment
 }
 
-func createSlackText(r report) string {
+func createSlackText(r tfl.Report) string {
 	slackText := ""
 	slackSeverity := mapTflStatuServerityToSlackSeverity(r.LineStatuses[0].StatusSeverity)
 	slackText = slackText + slackSeverity.Emoji
@@ -87,4 +89,7 @@ var lineColors = map[string]string{
 	"Piccadilly":         "#003688",
 	"Victoria":           "#0098D4",
 	"Waterloo & City":    "#95CDBA",
+	"London Overground":  "#EE7C0E",
+	"DLR":                "#00A4A7",
+	"TfL Rail":           "#0019A8",
 }

@@ -8,19 +8,18 @@ import (
 	"strings"
 	"time"
 
-	"io"
-
 	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
+	"github.com/thoeni/go-tfl"
 )
 
 const minStatusPollPeriod = 2
 
-var statuses []report
+var statuses []tfl.Report
 
 func lineStatusHandler(w http.ResponseWriter, r *http.Request) {
 
-	var response []report
+	var response []tfl.Report
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
@@ -38,12 +37,12 @@ func lineStatusHandler(w http.ResponseWriter, r *http.Request) {
 
 	if !lineIsPresentInPath {
 		for _, line := range statuses {
-			response = append(response, mapTflLineToResponse(line))
+			response = append(response, line)
 		}
 	} else {
 		for _, line := range statuses {
 			if strings.ToLower(line.Name) == strings.ToLower(tubeLine) {
-				response = append(response, mapTflLineToResponse(line))
+				response = append(response, line)
 			}
 
 		}
@@ -141,32 +140,13 @@ func isUpdateNeeded() bool {
 }
 
 func updateStatusInformation() error {
-	url := "https://api.tfl.gov.uk/line/mode/tube/status"
-
-	res, err := http.Get(url)
+	client := tfl.NewClient()
+	reports, err := client.GetTubeStatus()
 	if err != nil {
-		fmt.Println(err)
+		log.Print("Error while retrieving Tube statuses")
 		return err
 	}
-	defer res.Body.Close()
-
-	if statuses, err = decodeTflResponse(res.Body); err != nil {
-		return err
-	}
-
+	statuses = reports
 	lastStatusCheck = time.Now()
 	return nil
-}
-
-func decodeTflResponse(resp io.Reader) ([]report, error) {
-	decoder := json.NewDecoder(resp)
-
-	var data []report
-	err := decoder.Decode(&data)
-	if err != nil {
-		fmt.Println(err)
-		return nil, err
-	}
-
-	return data, nil
 }
