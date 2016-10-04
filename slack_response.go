@@ -1,35 +1,35 @@
 package main
 
-type SlackResponse struct {
-	Text          string       `json:"text"`
-	Response_type string       `json:"response_type"`
-	Attachments   []Attachment `json:"attachments"`
+type slackResponse struct {
+	Text         string       `json:"text"`
+	ResponseType string       `json:"response_type"`
+	Attachments  []attachment `json:"attachments"`
 }
 
-type Attachment struct {
-	Fallback  string   `json:"fallback"`
-	Color     string   `json:"color"`
-	Pretext   string   `json:"pretext"`
-	Text      string   `json:"text"`
-	Mrkdwn_in []string `json:"mrkdwn_in"`
+type attachment struct {
+	Fallback string   `json:"fallback"`
+	Color    string   `json:"color"`
+	Pretext  string   `json:"pretext"`
+	Text     string   `json:"text"`
+	MrkdwnIn []string `json:"mrkdwn_in"`
 }
 
-func mapTflLineToSlackAttachment(report Report) Attachment {
-	var slackAttachment Attachment
-	slackAttachment.Text = createSlackText(report)
-	slackAttachment.Color = mapLineNameToHexColor(report.Name)
-	slackAttachment.Mrkdwn_in = []string{"text"}
+func mapTflLineToSlackAttachment(r report) attachment {
+	var slackAttachment attachment
+	slackAttachment.Text = createSlackText(r)
+	slackAttachment.Color = mapLineNameToHexColor(r.Name)
+	slackAttachment.MrkdwnIn = []string{"text"}
 	return slackAttachment
 }
 
-func createSlackText(report Report) string {
+func createSlackText(r report) string {
 	slackText := ""
-	slackSeverity := mapTflStatuServerityToSlackSeverity(report.LineStatuses[0].StatusSeverity)
+	slackSeverity := mapTflStatuServerityToSlackSeverity(r.LineStatuses[0].StatusSeverity)
 	slackText = slackText + slackSeverity.Emoji
-	slackText = slackText + "  *" + report.Name + "*"
-	slackText = slackText + " :: " + report.LineStatuses[0].StatusSeverityDescription
+	slackText = slackText + "  *" + r.Name + "*"
+	slackText = slackText + " :: " + r.LineStatuses[0].StatusSeverityDescription
 	if slackSeverity == danger || slackSeverity == warning {
-		slackText = slackText + "\n" + report.LineStatuses[0].Reason
+		slackText = slackText + "\n" + r.LineStatuses[0].Reason
 	}
 	return slackText
 }
@@ -38,20 +38,20 @@ func mapLineNameToHexColor(lineName string) string {
 	return lineColors[lineName]
 }
 
-func mapTflStatuServerityToSlackSeverity(statusSeverity int) SlackSeverity {
+func mapTflStatuServerityToSlackSeverity(statusSeverity int) slackSeverity {
 	return severity[statusSeverity]
 }
 
-var danger = SlackSeverity{"danger", ":rage:"}
-var warning = SlackSeverity{"warning", ":warning:"}
-var good = SlackSeverity{"good", ":grinning:"}
+var danger = slackSeverity{"danger", ":rage:"}
+var warning = slackSeverity{"warning", ":warning:"}
+var good = slackSeverity{"good", ":grinning:"}
 
-type SlackSeverity struct {
+type slackSeverity struct {
 	Color string
 	Emoji string
 }
 
-var severity = map[int]SlackSeverity{
+var severity = map[int]slackSeverity{
 	0:  danger,
 	1:  danger,
 	2:  danger,

@@ -44,6 +44,7 @@ func (b boltTokenStore) reloadAuthorisedTokens() {
 	}
 }
 
+// Doc example
 func (b boltTokenStore) addSlackToken(token string) {
 
 	fmt.Println("Received request to add new token:", token)

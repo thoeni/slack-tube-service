@@ -1,6 +1,6 @@
 package main
 
-type Status struct {
+type status struct {
 	StatusSeverity            int
 	StatusSeverityDescription string
 	Reason                    string

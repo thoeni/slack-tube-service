@@ -8,18 +8,19 @@ import (
 	"strings"
 	"time"
 
+	"io"
+
 	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
-	"io"
 )
 
 const minStatusPollPeriod = 2
 
-var statuses []Report
+var statuses []report
 
 func lineStatusHandler(w http.ResponseWriter, r *http.Request) {
 
-	var response []Report
+	var response []report
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
@@ -65,35 +66,35 @@ func slackRequestHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
-	var slackResponse SlackResponse
-	var attachments []Attachment
-	var slackRequest = new(SlackRequest)
+	var slackResp slackResponse
+	var attachments []attachment
+	var slackReq = new(slackRequest)
 	decoder := schema.NewDecoder()
 
 	if err := r.ParseForm(); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		slackResponse.Text = "There was an error parsing input data"
-	} else if err := decoder.Decode(slackRequest, r.PostForm); err != nil {
+		slackResp.Text = "There was an error parsing input data"
+	} else if err := decoder.Decode(slackReq, r.PostForm); err != nil {
 		println("Decoding error")
 		w.WriteHeader(http.StatusBadRequest)
-		slackResponse.Text = "Request provided coudln't be decoded"
-	} else if !isTokenValid(slackRequest.Token) {
-		println("Invalid token")
+		slackResp.Text = "Request provided coudln't be decoded"
+	} else if !isTokenValid(slackReq.Token) {
+		fmt.Printf("Invalid token in request: %v from postForm: %v", slackReq, r.PostForm)
 		w.WriteHeader(http.StatusUnauthorized)
-		slackResponse.Text = "Unauthorised"
+		slackResp.Text = "Unauthorised"
 	} else {
 		if isUpdateNeeded() {
 			if err := updateStatusInformation(); err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
-				slackResponse.Text = "There was an error getting information from TFL"
+				slackResp.Text = "There was an error getting information from TFL"
 			}
 		}
 
-		tubeLine := strings.Join(slackRequest.Text, " ")
+		tubeLine := strings.Join(slackReq.Text, " ")
 
 		w.WriteHeader(http.StatusOK)
-		slackResponse.Response_type = "ephemeral"
-		slackResponse.Text = fmt.Sprintf("Slack Tube Service - last updated at %s", lastStatusCheck.Format("15:04:05"))
+		slackResp.ResponseType = "ephemeral"
+		slackResp.Text = fmt.Sprintf("Slack Tube Service - last updated at %s", lastStatusCheck.Format("15:04:05"))
 
 		if tubeLine == "" {
 			for _, line := range statuses {
@@ -107,14 +108,14 @@ func slackRequestHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			if len(attachments) == 0 {
 				w.WriteHeader(http.StatusNotFound)
-				slackResponse.Text = "Not a recognised line."
+				slackResp.Text = "Not a recognised line."
 			}
 		}
 
-		slackResponse.Attachments = attachments
+		slackResp.Attachments = attachments
 	}
 
-	if err := json.NewEncoder(w).Encode(slackResponse); err != nil {
+	if err := json.NewEncoder(w).Encode(slackResp); err != nil {
 		log.Panic(err)
 	}
 }
@@ -157,10 +158,10 @@ func updateStatusInformation() error {
 	return nil
 }
 
-func decodeTflResponse(resp io.Reader) ([]Report, error) {
+func decodeTflResponse(resp io.Reader) ([]report, error) {
 	decoder := json.NewDecoder(resp)
 
-	var data []Report
+	var data []report
 	err := decoder.Decode(&data)
 	if err != nil {
 		fmt.Println(err)

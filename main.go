@@ -11,7 +11,7 @@ import (
 	"os"
 )
 
-var tokenStore TokenStorer
+var tokenStore tokenStorer
 var lastStatusCheck time.Time
 
 var listenPort = os.Getenv("PORT")
@@ -48,7 +48,7 @@ func dbInit() error {
 		return err
 	}
 
-	tokenStore = BoltTokenStore{boltDB: db}
+	tokenStore = boltTokenStore{boltDB: db}
 
 	return nil
 }

@@ -1,10 +1,10 @@
 package main
 
-type Report struct {
+type report struct {
 	Name         string
-	LineStatuses []Status
+	LineStatuses []status
 }
 
-func mapTflLineToResponse(tflLine Report) Report {
+func mapTflLineToResponse(tflLine report) report {
 	return tflLine
 }

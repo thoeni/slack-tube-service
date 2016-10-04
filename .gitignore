@@ -4,3 +4,4 @@ tokens.txt
 coverage.out
 /bin
 *.db
+tags
