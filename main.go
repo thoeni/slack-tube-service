@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/boltdb/bolt"
 	"github.com/rs/cors"
-	"os"
 )
 
 var tokenStore tokenStorer
@@ -29,6 +29,23 @@ func init() {
 	if err != nil {
 		log.Panic(err)
 	}
+
+	err = dbInit()
+	if err != nil {
+		log.Fatal("Couldn't initialise DB", err)
+	} else {
+		fmt.Printf("BoltDB initiliased (%v), bucket created!\n", tokenStore)
+	}
+}
+
+func main() {
+
+	defer tokenStore.close()
+
+	tokenStore.reloadAuthorisedTokens()
+	router := newRouter()
+	fmt.Println("Ready, listening on port", listenPort)
+	log.Fatal(http.ListenAndServe(":"+listenPort, cors.Default().Handler(router)))
 }
 
 func dbInit() error {
@@ -51,21 +68,4 @@ func dbInit() error {
 	tokenStore = boltTokenStore{boltDB: db}
 
 	return nil
-}
-
-func main() {
-
-	err := dbInit()
-	if err != nil {
-		log.Fatal("Couldn't initialise DB")
-	} else {
-		fmt.Printf("BoltDB initiliased (%v), bucket created!\n", tokenStore)
-	}
-
-	defer tokenStore.close()
-
-	tokenStore.reloadAuthorisedTokens()
-	router := newRouter()
-	fmt.Println("Ready, listening on port", listenPort)
-	log.Fatal(http.ListenAndServe(":"+listenPort, cors.Default().Handler(router)))
 }

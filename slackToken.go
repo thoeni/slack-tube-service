@@ -86,7 +86,6 @@ func validateToken(token string) error {
 }
 
 func isTokenValid(token string) bool {
-	fmt.Printf("Token is: %v. Auth token set is: %v", token, authorisedTokenSet)
 	for authTokenID := range authorisedTokenSet {
 		if token == authorisedTokenSet[authTokenID] {
 			return true
