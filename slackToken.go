@@ -13,9 +13,10 @@ import (
 var authorisedTokenSet []string
 
 type tokenStorer interface {
-	reloadAuthorisedTokens()
-	addSlackToken(token string)
-	deleteSlackToken(token string)
+	retrieveAllTokens() (error, []string)
+	addToken(token string)
+	deleteToken(token string)
+	getToken() []string
 	close()
 }
 
@@ -26,26 +27,29 @@ type fileTokenStore struct {
 	file *os.File
 }
 
-func (b boltTokenStore) reloadAuthorisedTokens() {
+func (b boltTokenStore) retrieveAllTokens() (error, []string) {
 
-	authorisedTokenSet = make([]string, 0)
+	tokenSet := make([]string, 0)
+	var err error
 
-	if err := b.boltDB.View(func(tx *bolt.Tx) error {
+	if err = b.boltDB.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("token"))
 		c := b.Cursor()
 
 		for k, _ := c.First(); k != nil; k, _ = c.Next() {
-			authorisedTokenSet = append(authorisedTokenSet, string(k[:]))
+			tokenSet = append(tokenSet, string(k[:]))
 		}
 
 		return nil
 	}); err != nil {
 		log.Print("Transaction rolled back -> ", err)
 	}
+
+	return err, tokenSet
 }
 
 // Doc example
-func (b boltTokenStore) addSlackToken(token string) {
+func (b boltTokenStore) addToken(token string) {
 
 	fmt.Println("Received request to add new token:", token)
 
@@ -56,10 +60,10 @@ func (b boltTokenStore) addSlackToken(token string) {
 	}); err != nil {
 		log.Print("Transaction rolled back -> ", err)
 	}
-	b.reloadAuthorisedTokens()
+	b.retrieveAllTokens()
 }
 
-func (b boltTokenStore) deleteSlackToken(token string) {
+func (b boltTokenStore) deleteToken(token string) {
 
 	fmt.Println("Received request to delete token:", token)
 
@@ -70,7 +74,7 @@ func (b boltTokenStore) deleteSlackToken(token string) {
 	}); err != nil {
 		log.Print("Transaction rolled back -> ", err)
 	}
-	b.reloadAuthorisedTokens()
+	_, authorisedTokenSet = b.retrieveAllTokens()
 }
 
 func (b boltTokenStore) close() {

@@ -121,16 +121,16 @@ func slackRequestHandler(w http.ResponseWriter, r *http.Request) {
 
 func slackTokenRequestHandler(w http.ResponseWriter, r *http.Request) {
 	token, _ := mux.Vars(r)["token"]
-	err := validateToken(token)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
 	switch r.Method {
 	case http.MethodPut:
-		tokenStore.addSlackToken(token)
+		err := validateToken(token)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		tokenStore.addToken(token)
 	case http.MethodDelete:
-		tokenStore.deleteSlackToken(token)
+		tokenStore.deleteToken(token)
 	}
 	w.WriteHeader(http.StatusAccepted)
 }

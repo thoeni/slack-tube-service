@@ -42,7 +42,7 @@ func main() {
 
 	defer tokenStore.close()
 
-	tokenStore.reloadAuthorisedTokens()
+	_, authorisedTokenSet = tokenStore.retrieveAllTokens()
 	router := newRouter()
 	fmt.Println("Ready, listening on port", listenPort)
 	log.Fatal(http.ListenAndServe(":"+listenPort, cors.Default().Handler(router)))
