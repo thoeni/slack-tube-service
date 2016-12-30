@@ -16,7 +16,6 @@ type tokenStorer interface {
 	retrieveAllTokens() (error, []string)
 	addToken(token string)
 	deleteToken(token string)
-	getToken() []string
 	close()
 }
 
