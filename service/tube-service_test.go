@@ -75,7 +75,7 @@ func TestInMemoryCachedClient_WhenTimeLessThanInvalidate_ThenDoesNotCallTflClien
 	c := InMemoryCachedClient{
 		Client: mockTflClient,
 		InvalidateIntervalInSeconds: 10,
-		LastRetrieved:               time.Now().Add(-5 * time.Second),
+		LastUpdated:                 time.Now().Add(-5 * time.Second),
 		TubeStatus:                  validTflClientResponse,
 	}
 	c.GetTubeStatus()
@@ -88,7 +88,7 @@ func TestInMemoryCachedClient_WhenTimeLessThanInvalidate_ThenDoesCallTflClientTo
 	c := InMemoryCachedClient{
 		Client: mockTflClient,
 		InvalidateIntervalInSeconds: 10,
-		LastRetrieved:               time.Now().Add(-15 * time.Second),
+		LastUpdated:                 time.Now().Add(-15 * time.Second),
 		TubeStatus:                  validTflClientResponse,
 	}
 	c.GetTubeStatus()
@@ -101,7 +101,7 @@ func TestInMemoryCachedClient_WhenSetUrl_ThenChangesTheUnderlyingClientURL(t *te
 	c := InMemoryCachedClient{
 		Client: mockTflClient,
 		InvalidateIntervalInSeconds: 10,
-		LastRetrieved:               time.Now().Add(-15 * time.Second),
+		LastUpdated:                 time.Now().Add(-15 * time.Second),
 		TubeStatus:                  validTflClientResponse,
 	}
 	c.SetBaseURL("newUrl")

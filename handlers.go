@@ -14,10 +14,6 @@ import (
 	"github.com/thoeni/slack-tube-service/service"
 )
 
-const minStatusPollPeriod = 2
-
-var statuses []tfl.Report
-var reportMap map[string]tfl.Report
 var client tfl.Client = &service.InMemoryCachedClient{
 	tfl.NewClient(),
 	[]tfl.Report{},
@@ -63,44 +59,6 @@ func lineStatusHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func lineStatusHandler2(w http.ResponseWriter, r *http.Request) {
-
-	var response []tfl.Report
-
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-
-	if isUpdateNeeded() {
-		if err := updateStatusInformation(); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			if err := json.NewEncoder(w).Encode("There was an error getting information from TFL"); err != nil {
-				log.Panic(err)
-			}
-		}
-	}
-
-	vars := mux.Vars(r)
-	tubeLine, lineIsPresentInPath := vars["line"]
-
-	if !lineIsPresentInPath {
-		response = statuses
-	} else {
-		report, found := reportMap[strings.ToLower(tubeLine)]
-		if !found {
-			w.WriteHeader(http.StatusNotFound)
-			if err := json.NewEncoder(w).Encode("Not a recognised line."); err != nil {
-				log.Panic(err)
-			}
-			return
-		}
-		response = append(response, report)
-	}
-
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		log.Panic(err)
-	}
-}
-
 func slackRequestHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
@@ -122,33 +80,30 @@ func slackRequestHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		slackResp.Text = "Unauthorised"
 	} else {
-		if isUpdateNeeded() {
-			if err := updateStatusInformation(); err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				slackResp.Text = "There was an error getting information from TFL"
-			}
-		}
-
 		tubeLine := strings.Join(slackReq.Text, " ")
 
 		w.WriteHeader(http.StatusOK)
 		slackResp.ResponseType = "ephemeral"
 		slackResp.Text = fmt.Sprintf("Slack Tube Service - last updated at %s", lastStatusCheck.Format("15:04:05"))
 
-		if tubeLine == "" {
-			for _, line := range statuses {
-				attachments = append(attachments, mapTflLineToSlackAttachment(line))
-			}
-		} else {
-			for _, line := range statuses {
-				if strings.ToLower(line.Name) == strings.ToLower(tubeLine) {
-					attachments = append(attachments, mapTflLineToSlackAttachment(line))
-				}
-			}
-			if len(attachments) == 0 {
-				w.WriteHeader(http.StatusNotFound)
-				slackResp.Text = "Not a recognised line."
-			}
+		var lines []string
+		if tubeLine != "" {
+			lines = []string{tubeLine}
+		}
+
+		reportsMap, err := tubeService.GetStatusFor(lines)
+		log.Printf("Client address is %p", &(tubeService.Client))
+
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			slackResp.Text = "Error while retrieving information from TFL"
+		} else if len(reportsMap) == 0 {
+			w.WriteHeader(http.StatusNotFound)
+			slackResp.Text = "Not a recognised line."
+		}
+
+		for _, v := range reportsMap {
+			attachments = append(attachments, mapTflLineToSlackAttachment(v))
 		}
 
 		slackResp.Attachments = attachments
@@ -173,30 +128,4 @@ func slackTokenRequestHandler(w http.ResponseWriter, r *http.Request) {
 		tokenStore.deleteToken(token)
 	}
 	w.WriteHeader(http.StatusAccepted)
-}
-
-func updateStatusInformation() error {
-	var client tfl.Client = tfl.NewClient()
-	reports, err := client.GetTubeStatus()
-	if err != nil {
-		log.Print("Error while retrieving Tube statuses")
-		return err
-	}
-	statuses = reports
-	reportMap = tfl.ReportArrayToMap(reports)
-	lastStatusCheck = time.Now()
-	return nil
-}
-
-func isUpdateNeeded() bool {
-	return time.Since(lastStatusCheck).Minutes() > minStatusPollPeriod
-}
-
-func getReports() ([]tfl.Report, error) {
-	if isUpdateNeeded() {
-		if err := updateStatusInformation(); err != nil {
-			return nil, err
-		}
-	}
-	return statuses, nil
 }

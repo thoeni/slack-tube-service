@@ -14,17 +14,17 @@ type TubeService struct {
 type InMemoryCachedClient struct {
 	Client                      tfl.Client
 	TubeStatus                  []tfl.Report
-	LastRetrieved               time.Time
+	LastUpdated                 time.Time
 	InvalidateIntervalInSeconds float64
 }
 
 func (c *InMemoryCachedClient) GetTubeStatus() ([]tfl.Report, error) {
 	log.Printf("Called GetTubeStatus on InMemoryCachedClient!")
-	if time.Since(c.LastRetrieved).Seconds() > c.InvalidateIntervalInSeconds {
+	if time.Since(c.LastUpdated).Seconds() > c.InvalidateIntervalInSeconds {
 		log.Printf("Calling TFL...")
 		r, e := c.Client.GetTubeStatus()
 		c.TubeStatus = r
-		c.LastRetrieved = time.Now()
+		c.LastUpdated = time.Now()
 		return c.TubeStatus, e
 	}
 	log.Printf("Returning cached value...")
