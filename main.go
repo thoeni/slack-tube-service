@@ -13,7 +13,6 @@ import (
 )
 
 var tokenStore tokenStorer
-var lastStatusCheck time.Time
 
 var listenPort = os.Getenv("PORT")
 
@@ -32,13 +31,7 @@ func init() {
 		listenPort = defaultPort
 	}
 
-	var err error
-	lastStatusCheck, err = time.Parse(time.RFC3339, "1970-01-01T00:00:00+00:00")
-	if err != nil {
-		log.Panic(err)
-	}
-
-	err = dbInit()
+	err := dbInit()
 	if err != nil {
 		log.Fatal("Couldn't initialise DB", err)
 	} else {
