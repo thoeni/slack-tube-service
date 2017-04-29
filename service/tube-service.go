@@ -18,19 +18,20 @@ type InMemoryCachedClient struct {
 	InvalidateIntervalInSeconds float64
 }
 
-func (c InMemoryCachedClient) GetTubeStatus() ([]tfl.Report, error) {
+func (c *InMemoryCachedClient) GetTubeStatus() ([]tfl.Report, error) {
 	log.Printf("Called GetTubeStatus on InMemoryCachedClient!")
 	if time.Since(c.LastRetrieved).Seconds() > c.InvalidateIntervalInSeconds {
 		log.Printf("Calling TFL...")
-		c.LastRetrieved = time.Now()
 		r, e := c.Client.GetTubeStatus()
-		return r, e
+		c.TubeStatus = r
+		c.LastRetrieved = time.Now()
+		return c.TubeStatus, e
 	}
 	log.Printf("Returning cached value...")
 	return c.TubeStatus, nil
 }
 
-func (c InMemoryCachedClient) SetBaseURL(newURL string) {
+func (c *InMemoryCachedClient) SetBaseURL(newURL string) {
 	c.Client.SetBaseURL(newURL)
 }
 

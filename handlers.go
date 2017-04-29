@@ -18,7 +18,7 @@ const minStatusPollPeriod = 2
 
 var statuses []tfl.Report
 var reportMap map[string]tfl.Report
-var client tfl.Client = service.InMemoryCachedClient{
+var client tfl.Client = &service.InMemoryCachedClient{
 	tfl.NewClient(),
 	[]tfl.Report{},
 	time.Now().Add(-121 * time.Second),
@@ -28,27 +28,37 @@ var tubeService = service.TubeService{client}
 
 func lineStatusHandler(w http.ResponseWriter, r *http.Request) {
 
-	//var response []tfl.Report
-
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
 	vars := mux.Vars(r)
 	tubeLine, _ := vars["line"]
 
 	log.Printf("Line requested: %s", tubeLine)
+	var lines []string
+	if tubeLine != "" {
+		lines = []string{tubeLine}
+	}
 
-	status, err := tubeService.GetStatusFor([]string{tubeLine})
+	reportsMap, err := tubeService.GetStatusFor(lines)
+	log.Printf("Client address is %p", &(tubeService.Client))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		if err := json.NewEncoder(w).Encode("There was an error getting information from TFL"); err != nil {
 			log.Panic(err)
 		}
+		return
+	} else if len(reportsMap) == 0 {
+		w.WriteHeader(http.StatusNotFound)
+		if err := json.NewEncoder(w).Encode("Line requested not found"); err != nil {
+			log.Panic(err)
+		}
+		return
 	}
 
-	log.Printf("Status size is: %d", len(status))
+	log.Printf("Status size is: %d", len(reportsMap))
 
 	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(status); err != nil {
+	if err := json.NewEncoder(w).Encode(reportsMap); err != nil {
 		log.Panic(err)
 	}
 }

@@ -94,6 +94,19 @@ func TestInMemoryCachedClient_WhenTimeLessThanInvalidate_ThenDoesCallTflClientTo
 	c.GetTubeStatus()
 }
 
+func TestInMemoryCachedClient_WhenSetUrl_ThenChangesTheUnderlyingClientURL(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	mockTflClient := mocks.NewMockClient(mockCtrl)
+	mockTflClient.EXPECT().SetBaseURL("newUrl").Times(1)
+	c := InMemoryCachedClient{
+		Client: mockTflClient,
+		InvalidateIntervalInSeconds: 10,
+		LastRetrieved:               time.Now().Add(-15 * time.Second),
+		TubeStatus:                  validTflClientResponse,
+	}
+	c.SetBaseURL("newUrl")
+}
+
 func TestFilter(t *testing.T) {
 	onlyOneLine := filter(tfl.ReportArrayToMap(validTflClientResponse), []string{"Line2"})
 	actualLength := len(onlyOneLine)
@@ -107,14 +120,4 @@ func initialiseServiceWithTflClientReponse(t *testing.T, r []tfl.Report, e error
 	mockTflClient := mocks.NewMockClient(mockCtrl)
 	mockTflClient.EXPECT().GetTubeStatus().Return(r, e)
 	return TubeService{Client: mockTflClient}, mockCtrl
-}
-
-func initialiseInMemoryCachedClientWithTflClientReponse(t *testing.T, r []tfl.Report) (InMemoryCachedClient, *gomock.Controller) {
-	mockCtrl := gomock.NewController(t)
-	mockTflClient := mocks.NewMockClient(mockCtrl)
-	mockTflClient.EXPECT().GetTubeStatus().Return(r, nil)
-	return InMemoryCachedClient{
-		Client: mockTflClient,
-		InvalidateIntervalInSeconds: 1,
-	}, mockCtrl
 }
