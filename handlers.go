@@ -3,24 +3,15 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/gorilla/mux"
+	"github.com/gorilla/schema"
+	"github.com/thoeni/slack-tube-service/service"
 	"log"
 	"net/http"
 	"strings"
-	"time"
-
-	"github.com/gorilla/mux"
-	"github.com/gorilla/schema"
-	"github.com/thoeni/go-tfl"
-	"github.com/thoeni/slack-tube-service/service"
 )
 
-var client tfl.Client = &service.InMemoryCachedClient{
-	tfl.NewClient(),
-	[]tfl.Report{},
-	time.Now().Add(-121 * time.Second),
-	float64(120),
-}
-var tubeService = service.TubeService{client}
+var tubeService = service.TubeService{tflClient}
 
 func lineStatusHandler(w http.ResponseWriter, r *http.Request) {
 
@@ -29,14 +20,12 @@ func lineStatusHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	tubeLine, _ := vars["line"]
 
-	log.Printf("Line requested: %s", tubeLine)
 	var lines []string
 	if tubeLine != "" {
 		lines = []string{tubeLine}
 	}
 
 	reportsMap, err := tubeService.GetStatusFor(lines)
-	log.Printf("Client address is %p", &(tubeService.Client))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		if err := json.NewEncoder(w).Encode("There was an error getting information from TFL"); err != nil {
@@ -50,8 +39,6 @@ func lineStatusHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-
-	log.Printf("Status size is: %d", len(reportsMap))
 
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(reportsMap); err != nil {
@@ -84,7 +71,7 @@ func slackRequestHandler(w http.ResponseWriter, r *http.Request) {
 
 		w.WriteHeader(http.StatusOK)
 		slackResp.ResponseType = "ephemeral"
-		slackResp.Text = fmt.Sprintf("Slack Tube Service - last updated at %s", lastStatusCheck.Format("15:04:05"))
+		slackResp.Text = fmt.Sprintf("Slack Tube Service")
 
 		var lines []string
 		if tubeLine != "" {
@@ -92,7 +79,6 @@ func slackRequestHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		reportsMap, err := tubeService.GetStatusFor(lines)
-		log.Printf("Client address is %p", &(tubeService.Client))
 
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
