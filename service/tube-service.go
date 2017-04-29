@@ -5,11 +5,7 @@ import (
 	"time"
 )
 
-type TflService interface {
-	GetStatusFor([]string) (map[string]tfl.Report, error)
-}
-
-type HttpTubeService struct {
+type TubeService struct {
 	client tfl.Client
 }
 
@@ -27,7 +23,7 @@ func (c InMemoryCachedClient) GetTubeStatus() ([]tfl.Report, error) {
 	return c.tubeStatus, nil
 }
 
-func (s HttpTubeService) GetStatusFor(lines []string) (map[string]tfl.Report, error) {
+func (s TubeService) GetStatusFor(lines []string) (map[string]tfl.Report, error) {
 	reports, err := s.client.GetTubeStatus()
 	if err != nil {
 		return nil, err

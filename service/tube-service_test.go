@@ -102,11 +102,11 @@ func TestFilter(t *testing.T) {
 	}
 }
 
-func initialiseServiceWithTflClientReponse(t *testing.T, r []tfl.Report, e error) (TflService, *gomock.Controller) {
+func initialiseServiceWithTflClientReponse(t *testing.T, r []tfl.Report, e error) (TubeService, *gomock.Controller) {
 	mockCtrl := gomock.NewController(t)
 	mockTflClient := mocks.NewMockClient(mockCtrl)
 	mockTflClient.EXPECT().GetTubeStatus().Return(r, e)
-	return HttpTubeService{client: mockTflClient}, mockCtrl
+	return TubeService{client: mockTflClient}, mockCtrl
 }
 
 func initialiseInMemoryCachedClientWithTflClientReponse(t *testing.T, r []tfl.Report) (InMemoryCachedClient, *gomock.Controller) {
