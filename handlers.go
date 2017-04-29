@@ -3,60 +3,44 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/gorilla/mux"
+	"github.com/gorilla/schema"
 	"log"
 	"net/http"
 	"strings"
-	"time"
-
-	"github.com/gorilla/mux"
-	"github.com/gorilla/schema"
-	"github.com/thoeni/go-tfl"
 )
 
-const minStatusPollPeriod = 2
-
-var statuses []tfl.Report
+var tubeService = TubeService{tflClient}
 
 func lineStatusHandler(w http.ResponseWriter, r *http.Request) {
 
-	var response []tfl.Report
-
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
-	if isUpdateNeeded() {
-		if err := updateStatusInformation(); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			if err := json.NewEncoder(w).Encode("There was an error getting information from TFL"); err != nil {
-				log.Panic(err)
-			}
-		}
+	vars := mux.Vars(r)
+	tubeLine, _ := vars["line"]
+
+	var lines []string
+	if tubeLine != "" {
+		lines = []string{tubeLine}
 	}
 
-	vars := mux.Vars(r)
-	tubeLine, lineIsPresentInPath := vars["line"]
-
-	if !lineIsPresentInPath {
-		for _, line := range statuses {
-			response = append(response, line)
+	reportsMap, err := tubeService.GetStatusFor(lines)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		if err := json.NewEncoder(w).Encode("There was an error getting information from TFL"); err != nil {
+			log.Panic(err)
 		}
-	} else {
-		for _, line := range statuses {
-			if strings.ToLower(line.Name) == strings.ToLower(tubeLine) {
-				response = append(response, line)
-			}
-
+		return
+	} else if len(reportsMap) == 0 {
+		w.WriteHeader(http.StatusNotFound)
+		if err := json.NewEncoder(w).Encode("Line requested not found"); err != nil {
+			log.Panic(err)
 		}
-		if len(response) == 0 {
-			w.WriteHeader(http.StatusNotFound)
-			if err := json.NewEncoder(w).Encode("Not a recognised line."); err != nil {
-				log.Panic(err)
-			}
-			return
-		}
+		return
 	}
 
 	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(response); err != nil {
+	if err := json.NewEncoder(w).Encode(reportsMap); err != nil {
 		log.Panic(err)
 	}
 }
@@ -82,33 +66,29 @@ func slackRequestHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		slackResp.Text = "Unauthorised"
 	} else {
-		if isUpdateNeeded() {
-			if err := updateStatusInformation(); err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				slackResp.Text = "There was an error getting information from TFL"
-			}
-		}
-
 		tubeLine := strings.Join(slackReq.Text, " ")
 
 		w.WriteHeader(http.StatusOK)
 		slackResp.ResponseType = "ephemeral"
-		slackResp.Text = fmt.Sprintf("Slack Tube Service - last updated at %s", lastStatusCheck.Format("15:04:05"))
+		slackResp.Text = fmt.Sprintf("Slack Tube Service")
 
-		if tubeLine == "" {
-			for _, line := range statuses {
-				attachments = append(attachments, mapTflLineToSlackAttachment(line))
-			}
-		} else {
-			for _, line := range statuses {
-				if strings.ToLower(line.Name) == strings.ToLower(tubeLine) {
-					attachments = append(attachments, mapTflLineToSlackAttachment(line))
-				}
-			}
-			if len(attachments) == 0 {
-				w.WriteHeader(http.StatusNotFound)
-				slackResp.Text = "Not a recognised line."
-			}
+		var lines []string
+		if tubeLine != "" {
+			lines = []string{tubeLine}
+		}
+
+		reportsMap, err := tubeService.GetStatusFor(lines)
+
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			slackResp.Text = "Error while retrieving information from TFL"
+		} else if len(reportsMap) == 0 {
+			w.WriteHeader(http.StatusNotFound)
+			slackResp.Text = "Not a recognised line."
+		}
+
+		for _, v := range reportsMap {
+			attachments = append(attachments, mapTflLineToSlackAttachment(v))
 		}
 
 		slackResp.Attachments = attachments
@@ -133,20 +113,4 @@ func slackTokenRequestHandler(w http.ResponseWriter, r *http.Request) {
 		tokenStore.deleteToken(token)
 	}
 	w.WriteHeader(http.StatusAccepted)
-}
-
-func isUpdateNeeded() bool {
-	return time.Since(lastStatusCheck).Minutes() > minStatusPollPeriod
-}
-
-func updateStatusInformation() error {
-	client := tfl.NewClient()
-	reports, err := client.GetTubeStatus()
-	if err != nil {
-		log.Print("Error while retrieving Tube statuses")
-		return err
-	}
-	statuses = reports
-	lastStatusCheck = time.Now()
-	return nil
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/boltdb/bolt"
 	"github.com/rs/cors"
+	"github.com/thoeni/go-tfl"
 )
 
 var tokenStore tokenStorer
@@ -17,6 +18,13 @@ var lastStatusCheck time.Time
 var listenPort = os.Getenv("PORT")
 
 const defaultPort = "1123"
+
+var tflClient = &InMemoryCachedClient{
+	tfl.NewClient(),
+	[]tfl.Report{},
+	time.Now().Add(-121 * time.Second),
+	float64(120),
+}
 
 func init() {
 
