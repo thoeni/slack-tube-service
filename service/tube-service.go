@@ -1,18 +1,43 @@
 package service
 
-import "github.com/thoeni/go-tfl"
+import (
+	"github.com/thoeni/go-tfl"
+	"time"
+)
 
 type TflService interface {
-	getStatusFor([]string) (map[string]tfl.Report, error)
+	GetStatusFor([]string) (map[string]tfl.Report, error)
 }
 
 type HttpTubeService struct {
 	client tfl.Client
 }
 
-func (s HttpTubeService) getStatusFor(lines []string) (map[string]tfl.Report, error) {
-	reports, _ := s.client.GetTubeStatus()
-	return filter(tfl.ReportArrayToMap(reports), lines), nil
+type InMemoryCachedClient struct {
+	client                      tfl.Client
+	tubeStatus                  []tfl.Report
+	lastRetrieve                time.Time
+	invalidateIntervalInSeconds float64
+}
+
+func (c InMemoryCachedClient) GetTubeStatus() ([]tfl.Report, error) {
+	if time.Since(c.lastRetrieve).Seconds() > c.invalidateIntervalInSeconds {
+		return c.client.GetTubeStatus()
+	}
+	return c.tubeStatus, nil
+}
+
+func (s HttpTubeService) GetStatusFor(lines []string) (map[string]tfl.Report, error) {
+	reports, err := s.client.GetTubeStatus()
+	if err != nil {
+		return nil, err
+	}
+	reportsMap := tfl.ReportArrayToMap(reports)
+	if len(lines) == 0 {
+		return reportsMap, nil
+	} else {
+		return filter(reportsMap, lines), nil
+	}
 }
 
 func filter(reportsMap map[string]tfl.Report, lines []string) map[string]tfl.Report {
