@@ -13,7 +13,7 @@ var validTflClientResponse = []tfl.Report{
 	{"line3", []tfl.Status{{StatusSeverity: 2, Reason: "", StatusSeverityDescription: ""}}},
 }
 
-func TestGetStatusFor(t *testing.T) {
+func TestGetStatusFor_whenValuesReturnedByTflClient(t *testing.T) {
 	s, c := initialiseServiceWithTflClientReponse(t, validTflClientResponse)
 	defer c.Finish()
 
@@ -29,9 +29,39 @@ func TestGetStatusFor(t *testing.T) {
 	}
 }
 
+func TestGetStatusFor_whenEmptyValuesReturnedByTflClient(t *testing.T) {
+	s, c := initialiseServiceWithTflClientReponse(t, []tfl.Report{})
+	defer c.Finish()
+
+	result, _ := s.getStatusFor([]string{"line1", "line3"})
+
+	if !(len(result) == 0) {
+		t.Errorf("Failed to retrieve two lines. There were %d lines.", len(result))
+	}
+}
+
+func TestGetStatusFor_whenNoLinesSpecified(t *testing.T) {
+	s, c := initialiseServiceWithTflClientReponse(t, validTflClientResponse)
+	defer c.Finish()
+
+	result, _ := s.getStatusFor([]string{})
+
+	if !(len(result) == 0) {
+		t.Errorf("Failed to retrieve two lines. There were %d lines.", len(result))
+	}
+}
+
+func TestFilter(t *testing.T) {
+	onlyOneLine := filter(tfl.ReportArrayToMap(validTflClientResponse), []string{"line2"})
+	actualLength := len(onlyOneLine)
+	if actualLength != 1 {
+		t.Errorf("Actual length was %d instead of expected 1", actualLength)
+	}
+}
+
 func initialiseServiceWithTflClientReponse(t *testing.T, r []tfl.Report) (TflService, *gomock.Controller) {
 	mockCtrl := gomock.NewController(t)
 	mockTflClient := mocks.NewMockClient(mockCtrl)
-	mockTflClient.EXPECT().GetTubeStatus().Return(validTflClientResponse, nil)
+	mockTflClient.EXPECT().GetTubeStatus().Return(r, nil)
 	return HttpTubeService{client: mockTflClient}, mockCtrl
 }
