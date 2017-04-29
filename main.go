@@ -10,7 +10,6 @@ import (
 	"github.com/boltdb/bolt"
 	"github.com/rs/cors"
 	"github.com/thoeni/go-tfl"
-	"github.com/thoeni/slack-tube-service/service"
 )
 
 var tokenStore tokenStorer
@@ -20,7 +19,7 @@ var listenPort = os.Getenv("PORT")
 
 const defaultPort = "1123"
 
-var tflClient = &service.InMemoryCachedClient{
+var tflClient = &InMemoryCachedClient{
 	tfl.NewClient(),
 	[]tfl.Report{},
 	time.Now().Add(-121 * time.Second),

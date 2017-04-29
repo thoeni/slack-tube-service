@@ -5,13 +5,12 @@ import (
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
-	"github.com/thoeni/slack-tube-service/service"
 	"log"
 	"net/http"
 	"strings"
 )
 
-var tubeService = service.TubeService{tflClient}
+var tubeService = TubeService{tflClient}
 
 func lineStatusHandler(w http.ResponseWriter, r *http.Request) {
 
