@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
+	"github.com/thoeni/go-tfl"
 	"log"
 	"net/http"
+	"sort"
 	"strings"
 )
 
@@ -50,7 +52,6 @@ func slackRequestHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
 	var slackResp slackResponse
-	var attachments []attachment
 	var slackReq = new(slackRequest)
 	decoder := schema.NewDecoder()
 
@@ -87,16 +88,30 @@ func slackRequestHandler(w http.ResponseWriter, r *http.Request) {
 			slackResp.Text = "Not a recognised line."
 		}
 
-		for _, v := range reportsMap {
-			attachments = append(attachments, mapTflLineToSlackAttachment(v))
-		}
-
-		slackResp.Attachments = attachments
+		slackResp.Attachments = reportMapToSortedAttachmentsArray(reportsMap)
 	}
 
 	if err := json.NewEncoder(w).Encode(slackResp); err != nil {
 		log.Panic(err)
 	}
+}
+
+func reportMapToSortedAttachmentsArray(inputMap map[string]tfl.Report) []attachment {
+	keys := make([]string, len(inputMap))
+	attachments := make([]attachment, len(inputMap))
+	i := 0
+
+	for k := range inputMap {
+		keys[i] = k
+		i++
+	}
+	sort.Strings(keys)
+
+	for j, k := range keys {
+		attachments[j] = mapTflLineToSlackAttachment(inputMap[k])
+	}
+
+	return attachments
 }
 
 func slackTokenRequestHandler(w http.ResponseWriter, r *http.Request) {

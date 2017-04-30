@@ -12,7 +12,7 @@ import (
 	"github.com/thoeni/go-tfl"
 )
 
-var tokenStore tokenStorer
+var tokenStore repository
 
 var listenPort = os.Getenv("PORT")
 
@@ -66,7 +66,7 @@ func dbInit() error {
 		return err
 	}
 
-	tokenStore = boltTokenStore{boltDB: db}
+	tokenStore = boltRepository{boltDB: db}
 
 	return nil
 }

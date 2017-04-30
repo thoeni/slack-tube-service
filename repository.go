@@ -12,21 +12,27 @@ import (
 
 var authorisedTokenSet []string
 
-type tokenStorer interface {
+type repository interface {
 	retrieveAllTokens() (error, []string)
 	addToken(token string)
 	deleteToken(token string)
 	close()
 }
 
-type boltTokenStore struct {
+type boltRepository struct {
 	boltDB *bolt.DB
 }
-type fileTokenStore struct {
+type fileRepository struct {
 	file *os.File
 }
 
-func (b boltTokenStore) retrieveAllTokens() (error, []string) {
+func (b boltRepository) close() {
+	b.boltDB.Close()
+}
+
+// Token
+
+func (b boltRepository) retrieveAllTokens() (error, []string) {
 
 	tokenSet := make([]string, 0)
 	var err error
@@ -47,8 +53,7 @@ func (b boltTokenStore) retrieveAllTokens() (error, []string) {
 	return err, tokenSet
 }
 
-// Doc example
-func (b boltTokenStore) addToken(token string) {
+func (b boltRepository) addToken(token string) {
 
 	fmt.Println("Received request to add new token:", token)
 
@@ -62,7 +67,7 @@ func (b boltTokenStore) addToken(token string) {
 	b.retrieveAllTokens()
 }
 
-func (b boltTokenStore) deleteToken(token string) {
+func (b boltRepository) deleteToken(token string) {
 
 	fmt.Println("Received request to delete token:", token)
 
@@ -74,10 +79,6 @@ func (b boltTokenStore) deleteToken(token string) {
 		log.Print("Transaction rolled back -> ", err)
 	}
 	_, authorisedTokenSet = b.retrieveAllTokens()
-}
-
-func (b boltTokenStore) close() {
-	b.boltDB.Close()
 }
 
 func validateToken(token string) error {

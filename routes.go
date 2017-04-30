@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type route struct {
@@ -28,7 +28,7 @@ func newRouter() *mux.Router {
 	}
 
 	// Additional route for Prometheus instrumentation
-	router.Methods(http.MethodGet).Path("/metrics").Handler(prometheus.Handler())
+	router.Methods(http.MethodGet).Path("/metrics").Handler(promhttp.Handler())
 
 	return router
 }
