@@ -17,6 +17,9 @@ import (
 
 const (
 	tflResponseJson string = "test-data/tflResponse.json"
+	bakerloo        string = "\"Bakerloo\":{\"Name\":\"Bakerloo\",\"LineStatuses\":[{\"StatusSeverity\":5,\"StatusSeverityDescription\":\"\",\"Reason\":\"\"}]}"
+	jubilee         string = "\"Jubilee\":{\"Name\":\"Jubilee\",\"LineStatuses\":[{\"StatusSeverity\":5,\"StatusSeverityDescription\":\"\",\"Reason\":\"\"}]}"
+	waterlooAndCity string = "\"Waterloo & City\":{\"Name\":\"Waterloo \u0026 City\",\"LineStatuses\":[{\"StatusSeverity\":5,\"StatusSeverityDescription\":\"\",\"Reason\":\"\"}]}"
 )
 
 func TestReportMapToSortedAttachmentsArray_whenInputMap_thenOutputArrayIsSorted(t *testing.T) {
@@ -41,53 +44,100 @@ func TestReportMapToSortedAttachmentsArray_whenInputMap_thenOutputArrayIsSorted(
 
 func TestLineStatusHandler_whenCalledToRetrieveAllLines(t *testing.T) {
 
-	serviceOutputMap, expectedBody := lineStatusHandlerInOut()
+	allLinesTflServiceResponse := tubeServiceResponseGeneratorFor([]string{"Bakerloo", "Jubilee", "Waterloo & City"})
+	expectedBody := fmt.Sprintf("{%s,%s,%s}\n", bakerloo, jubilee, waterlooAndCity)
 
 	var c *gomock.Controller = gomock.NewController(t)
-	var input []string
-	tubeService = newMockTflService(c, input, serviceOutputMap, nil)
-	responseWriter := responseWriterMock{t, 200, expectedBody}
+	var forAllLines []string
+	tubeService = newMockTflService(c, forAllLines, allLinesTflServiceResponse, nil)
+	responseRecorder := httptest.NewRecorder()
 	defer c.Finish()
+	var req *http.Request = httptest.NewRequest(http.MethodGet, "/api/tubestatus/", nil)
 
-	var request http.Request = http.Request{}
-	request.RequestURI = "/api/tubestatus/"
+	newRouter().ServeHTTP(responseRecorder, req)
 
-	lineStatusHandler(responseWriter, &request)
+	resp := responseRecorder.Result()
+	body, _ := ioutil.ReadAll(resp.Body)
+	if resp.StatusCode != 200 {
+		t.Errorf("Status code returned was %d instead of expected 200", resp.StatusCode)
+	}
+	if bytes.Compare(body, []byte(expectedBody)) != 0 {
+		t.Errorf("Body and expected body do not match: received:\n%s \n expected:\n%s", string(body), expectedBody)
+	}
+}
+
+func TestLineStatusHandler_whenCalledToRetrieveSingleLine(t *testing.T) {
+
+	singleLineTflServiceResponse := tubeServiceResponseGeneratorFor([]string{"Bakerloo"})
+	expectedBody := fmt.Sprintf("{%s}\n", bakerloo)
+
+	var c *gomock.Controller = gomock.NewController(t)
+	forSingleLine := []string{"Bakerloo"}
+	tubeService = newMockTflService(c, forSingleLine, singleLineTflServiceResponse, nil)
+	responseRecorder := httptest.NewRecorder()
+	defer c.Finish()
+	var req *http.Request = httptest.NewRequest(http.MethodGet, "/api/tubestatus/Bakerloo", nil)
+
+	newRouter().ServeHTTP(responseRecorder, req)
+
+	resp := responseRecorder.Result()
+	body, _ := ioutil.ReadAll(resp.Body)
+	if resp.StatusCode != 200 {
+		t.Errorf("Status code returned was %d instead of expected 200", resp.StatusCode)
+	}
+	if bytes.Compare(body, []byte(expectedBody)) != 0 {
+		t.Errorf("Body and expected body do not match: received:\n%s \n expected:\n%s", string(body), expectedBody)
+	}
 }
 
 func TestLineStatusHandler_whenServiceFails_Returns500(t *testing.T) {
 
-	serviceOutputMap, _ := lineStatusHandlerInOut()
+	singleLineTflServiceResponse := tubeServiceResponseGeneratorFor([]string{"Bakerloo"})
 
 	var c *gomock.Controller = gomock.NewController(t)
-	var input []string
-	tubeService = newMockTflService(c, input, serviceOutputMap, errors.New("Something went wrong"))
-	responseWriter := responseWriterMock{t, 500, "\"There was an error getting information from TFL\"\n"}
+	forSingleLine := []string{"Bakerloo"}
+	tubeService = newMockTflService(c, forSingleLine, singleLineTflServiceResponse, errors.New("Something went wrong"))
+	responseRecorder := httptest.NewRecorder()
 	defer c.Finish()
+	var req *http.Request = httptest.NewRequest(http.MethodGet, "/api/tubestatus/Bakerloo", nil)
 
-	var request http.Request = http.Request{}
-	request.RequestURI = "/api/tubestatus/"
+	newRouter().ServeHTTP(responseRecorder, req)
 
-	lineStatusHandler(responseWriter, &request)
+	resp := responseRecorder.Result()
+	body, _ := ioutil.ReadAll(resp.Body)
+	if resp.StatusCode != 500 {
+		t.Errorf("Status code returned was %d instead of expected 500", resp.StatusCode)
+	}
+	if bytes.Compare(body, []byte("\"There was an error getting information from TFL\"\n")) != 0 {
+		t.Errorf("Body and expected body do not match: received:\n%s \n expected:\n%s", string(body), "\"There was an error getting information from TFL\"\n")
+	}
 }
 
 func TestLineStatusHandler_whenServiceReturnsEmptyLinesAndNoError_Returns404(t *testing.T) {
 
-	var serviceOutputMap map[string]tfl.Report
+	var noLineTflServiceResponse map[string]tfl.Report
 
 	var c *gomock.Controller = gomock.NewController(t)
-	var input []string
-	tubeService = newMockTflService(c, input, serviceOutputMap, nil)
-	responseWriter := responseWriterMock{t, 404, "\"Line requested not found\"\n"}
+	forUnknownLine := []string{"unknownLine"}
+	tubeService = newMockTflService(c, forUnknownLine, noLineTflServiceResponse, nil)
 	defer c.Finish()
 
-	var request http.Request = http.Request{}
-	request.RequestURI = "/api/tubestatus/"
+	responseRecorder := httptest.NewRecorder()
+	var req *http.Request = httptest.NewRequest(http.MethodGet, "/api/tubestatus/unknownLine", nil)
 
-	lineStatusHandler(responseWriter, &request)
+	newRouter().ServeHTTP(responseRecorder, req)
+
+	resp := responseRecorder.Result()
+	body, _ := ioutil.ReadAll(resp.Body)
+	if resp.StatusCode != 404 {
+		t.Errorf("Status code returned was %d instead of expected 404", resp.StatusCode)
+	}
+	if bytes.Compare(body, []byte("\"Line requested not found\"\n")) != 0 {
+		t.Errorf("Body and expected body do not match: received:\n%s \n expected:\n%s", string(body), "\"Line requested not found\"\n")
+	}
 }
 
-func TestLineStatusHandler_Integration_HappyPath(t *testing.T) {
+func TestLineStatusHandler_Integration_HappyPathAllLines(t *testing.T) {
 	mockTflResponse, _ := ioutil.ReadFile(tflResponseJson)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -104,16 +154,57 @@ func TestLineStatusHandler_Integration_HappyPath(t *testing.T) {
 		time.Now().Add(-121 * time.Second),
 		float64(120),
 	}
-
 	tubeService = TubeService{tflClient}
 
-	var request http.Request = http.Request{}
-	request.RequestURI = "/api/tubestatus/Bakerloo"
-
+	responseRecorder := httptest.NewRecorder()
 	expectedBodyFromTflResponse := "{\"bakerloo\":{\"Name\":\"Bakerloo\",\"LineStatuses\":[{\"StatusSeverity\":10,\"StatusSeverityDescription\":\"Good Service\",\"Reason\":\"\"}]},\"central\":{\"Name\":\"Central\",\"LineStatuses\":[{\"StatusSeverity\":10,\"StatusSeverityDescription\":\"Good Service\",\"Reason\":\"\"}]},\"circle\":{\"Name\":\"Circle\",\"LineStatuses\":[{\"StatusSeverity\":10,\"StatusSeverityDescription\":\"Good Service\",\"Reason\":\"\"}]},\"district\":{\"Name\":\"District\",\"LineStatuses\":[{\"StatusSeverity\":10,\"StatusSeverityDescription\":\"Good Service\",\"Reason\":\"\"}]},\"hammersmith & city\":{\"Name\":\"Hammersmith & City\",\"LineStatuses\":[{\"StatusSeverity\":10,\"StatusSeverityDescription\":\"Good Service\",\"Reason\":\"\"}]},\"jubilee\":{\"Name\":\"Jubilee\",\"LineStatuses\":[{\"StatusSeverity\":10,\"StatusSeverityDescription\":\"Good Service\",\"Reason\":\"\"}]},\"metropolitan\":{\"Name\":\"Metropolitan\",\"LineStatuses\":[{\"StatusSeverity\":10,\"StatusSeverityDescription\":\"Good Service\",\"Reason\":\"\"}]},\"northern\":{\"Name\":\"Northern\",\"LineStatuses\":[{\"StatusSeverity\":10,\"StatusSeverityDescription\":\"Good Service\",\"Reason\":\"\"}]},\"piccadilly\":{\"Name\":\"Piccadilly\",\"LineStatuses\":[{\"StatusSeverity\":10,\"StatusSeverityDescription\":\"Good Service\",\"Reason\":\"\"}]},\"victoria\":{\"Name\":\"Victoria\",\"LineStatuses\":[{\"StatusSeverity\":10,\"StatusSeverityDescription\":\"Good Service\",\"Reason\":\"\"}]},\"waterloo & city\":{\"Name\":\"Waterloo & City\",\"LineStatuses\":[{\"StatusSeverity\":10,\"StatusSeverityDescription\":\"Good Service\",\"Reason\":\"\"}]}}\n"
-	var response http.ResponseWriter = responseWriterMock{t, 200, expectedBodyFromTflResponse}
+	var req *http.Request = httptest.NewRequest(http.MethodGet, "/api/tubestatus/", nil)
 
-	lineStatusHandler(response, &request)
+	newRouter().ServeHTTP(responseRecorder, req)
+
+	resp := responseRecorder.Result()
+	body, _ := ioutil.ReadAll(resp.Body)
+	if resp.StatusCode != 200 {
+		t.Errorf("Status code returned was %d instead of expected 200", resp.StatusCode)
+	}
+	if bytes.Compare(body, []byte(expectedBodyFromTflResponse)) != 0 {
+		t.Errorf("Body and expected body do not match: received:\n%s \n expected:\n%s", string(body), expectedBodyFromTflResponse)
+	}
+}
+
+func TestLineStatusHandler_Integration_HappyPathSingleLine(t *testing.T) {
+	mockTflResponse, _ := ioutil.ReadFile(tflResponseJson)
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintln(w, string(mockTflResponse))
+	}))
+	defer ts.Close()
+
+	client := tfl.NewClient()
+	client.SetBaseURL(ts.URL + "/")
+
+	tflClient = &InMemoryCachedClient{
+		client,
+		[]tfl.Report{},
+		time.Now().Add(-121 * time.Second),
+		float64(120),
+	}
+	tubeService = TubeService{tflClient}
+
+	responseRecorder := httptest.NewRecorder()
+	expectedBodyFromTflResponse := "{\"Bakerloo\":{\"Name\":\"Bakerloo\",\"LineStatuses\":[{\"StatusSeverity\":10,\"StatusSeverityDescription\":\"Good Service\",\"Reason\":\"\"}]}}\n"
+	var req *http.Request = httptest.NewRequest(http.MethodGet, "/api/tubestatus/Bakerloo", nil)
+
+	newRouter().ServeHTTP(responseRecorder, req)
+
+	resp := responseRecorder.Result()
+	body, _ := ioutil.ReadAll(resp.Body)
+	if resp.StatusCode != 200 {
+		t.Errorf("Status code returned was %d instead of expected 200", resp.StatusCode)
+	}
+	if bytes.Compare(body, []byte(expectedBodyFromTflResponse)) != 0 {
+		t.Errorf("Body and expected body do not match: received:\n%s \n expected:\n%s", string(body), expectedBodyFromTflResponse)
+	}
 }
 
 type responseWriterMock struct {
@@ -144,13 +235,18 @@ func newMockTflService(c *gomock.Controller, input []string, output map[string]t
 	return mockTflService
 }
 
-func lineStatusHandlerInOut() (map[string]tfl.Report, string) {
+func tubeServiceResponseGeneratorFor(lines []string) map[string]tfl.Report {
+
+	linesMap := make(map[string]tfl.Report)
+	linesMap["Waterloo & City"] = tfl.Report{"Waterloo & City", []tfl.Status{{StatusSeverity: 5, Reason: "", StatusSeverityDescription: ""}}}
+	linesMap["Bakerloo"] = tfl.Report{"Bakerloo", []tfl.Status{{StatusSeverity: 5, Reason: "", StatusSeverityDescription: ""}}}
+	linesMap["Jubilee"] = tfl.Report{"Jubilee", []tfl.Status{{StatusSeverity: 5, Reason: "", StatusSeverityDescription: ""}}}
+
 	var serviceOutputMap = make(map[string]tfl.Report)
-	serviceOutputMap["Waterloo & City"] = tfl.Report{"Waterloo & City", []tfl.Status{{StatusSeverity: 5, Reason: "", StatusSeverityDescription: ""}}}
-	serviceOutputMap["Bakerloo"] = tfl.Report{"Bakerloo", []tfl.Status{{StatusSeverity: 5, Reason: "", StatusSeverityDescription: ""}}}
-	serviceOutputMap["Jubilee"] = tfl.Report{"Jubilee", []tfl.Status{{StatusSeverity: 5, Reason: "", StatusSeverityDescription: ""}}}
 
-	var apiOutputBody string = "{\"Bakerloo\":{\"Name\":\"Bakerloo\",\"LineStatuses\":[{\"StatusSeverity\":5,\"StatusSeverityDescription\":\"\",\"Reason\":\"\"}]},\"Jubilee\":{\"Name\":\"Jubilee\",\"LineStatuses\":[{\"StatusSeverity\":5,\"StatusSeverityDescription\":\"\",\"Reason\":\"\"}]},\"Waterloo \u0026 City\":{\"Name\":\"Waterloo \u0026 City\",\"LineStatuses\":[{\"StatusSeverity\":5,\"StatusSeverityDescription\":\"\",\"Reason\":\"\"}]}}\n"
+	for _, line := range lines {
+		serviceOutputMap[line] = linesMap[line]
+	}
 
-	return serviceOutputMap, apiOutputBody
+	return serviceOutputMap
 }
