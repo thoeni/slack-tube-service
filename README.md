@@ -1,4 +1,4 @@
-Build: [![CircleCI](https://circleci.com/gh/thoeni/slack-tube-service.svg?style=svg)](https://circleci.com/gh/thoeni/slack-tube-service)
+Build: [![CircleCI](https://circleci.com/gh/thoeni/slack-tube-service.svg?style=svg)](https://circleci.com/gh/thoeni/slack-tube-service) [![Coverage Status](https://coveralls.io/repos/github/thoeni/slack-tube-service/badge.svg?branch=master)](https://coveralls.io/github/thoeni/slack-tube-service?branch=master)
 
 # Build & Run
 

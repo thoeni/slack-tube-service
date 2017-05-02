@@ -12,10 +12,12 @@ import (
 	"strings"
 )
 
-var tubeService = TubeService{tflClient}
+var tubeService TflService = TubeService{tflClient}
 
 func lineStatusHandler(w http.ResponseWriter, r *http.Request) {
 
+	encoder := json.NewEncoder(w)
+	encoder.SetEscapeHTML(false)
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
 	vars := mux.Vars(r)
@@ -29,22 +31,16 @@ func lineStatusHandler(w http.ResponseWriter, r *http.Request) {
 	reportsMap, err := tubeService.GetStatusFor(lines)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		if err := json.NewEncoder(w).Encode("There was an error getting information from TFL"); err != nil {
-			log.Panic(err)
-		}
+		encoder.Encode("There was an error getting information from TFL")
 		return
 	} else if len(reportsMap) == 0 {
 		w.WriteHeader(http.StatusNotFound)
-		if err := json.NewEncoder(w).Encode("Line requested not found"); err != nil {
-			log.Panic(err)
-		}
+		encoder.Encode("Line requested not found")
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(reportsMap); err != nil {
-		log.Panic(err)
-	}
+	encoder.Encode(reportsMap)
 }
 
 func slackRequestHandler(w http.ResponseWriter, r *http.Request) {

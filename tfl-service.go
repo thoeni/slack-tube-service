@@ -1,10 +1,14 @@
 package main
 
 import (
-	"github.com/thoeni/go-tfl"
+	tfl "github.com/thoeni/go-tfl"
 	"strings"
 	"time"
 )
+
+type TflService interface {
+	GetStatusFor(lines []string) (map[string]tfl.Report, error)
+}
 
 type TubeService struct {
 	Client tfl.Client
