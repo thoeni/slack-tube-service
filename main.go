@@ -12,7 +12,7 @@ import (
 	"github.com/thoeni/go-tfl"
 )
 
-var tokenStore repository
+var tokenStore Repository
 
 var listenPort = os.Getenv("PORT")
 
@@ -24,6 +24,8 @@ var tflClient = &InMemoryCachedClient{
 	time.Now().Add(-121 * time.Second),
 	float64(120),
 }
+
+var tubeService TflService = TubeService{tflClient}
 
 func init() {
 
@@ -41,9 +43,9 @@ func init() {
 
 func main() {
 
-	defer tokenStore.close()
+	defer tokenStore.Close()
 
-	_, authorisedTokenSet = tokenStore.retrieveAllTokens()
+	_, authorisedTokenSet = tokenStore.RetrieveAllTokens()
 	router := newRouter()
 	fmt.Println("Ready, listening on port", listenPort)
 	log.Fatal(http.ListenAndServe(":"+listenPort, cors.Default().Handler(router)))

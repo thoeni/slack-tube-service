@@ -6,46 +6,16 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
 	"github.com/thoeni/go-tfl"
-	"log"
 	"net/http"
 	"sort"
 	"strings"
 )
 
-var tubeService TflService = TubeService{tflClient}
-
-func lineStatusHandler(w http.ResponseWriter, r *http.Request) {
-
-	encoder := json.NewEncoder(w)
-	encoder.SetEscapeHTML(false)
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-
-	vars := mux.Vars(r)
-	tubeLine, _ := vars["line"]
-
-	var lines []string
-	if tubeLine != "" {
-		lines = []string{tubeLine}
-	}
-
-	reportsMap, err := tubeService.GetStatusFor(lines)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		encoder.Encode("There was an error getting information from TFL")
-		return
-	} else if len(reportsMap) == 0 {
-		w.WriteHeader(http.StatusNotFound)
-		encoder.Encode("Line requested not found")
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	encoder.Encode(reportsMap)
-}
-
 func slackRequestHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	encoder := json.NewEncoder(w)
+	encoder.SetEscapeHTML(false)
 
 	var slackResp slackResponse
 	var slackReq = new(slackRequest)
@@ -54,42 +24,49 @@ func slackRequestHandler(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		slackResp.Text = "There was an error parsing input data"
+		encoder.Encode(slackResp)
+		return
 	} else if err := decoder.Decode(slackReq, r.PostForm); err != nil {
 		println("Decoding error")
 		w.WriteHeader(http.StatusBadRequest)
 		slackResp.Text = "Request provided coudln't be decoded"
+		encoder.Encode(slackResp)
+		return
 	} else if !isTokenValid(slackReq.Token) {
 		fmt.Printf("Invalid token in request: %v from postForm: %v", slackReq, r.PostForm)
 		w.WriteHeader(http.StatusUnauthorized)
 		slackResp.Text = "Unauthorised"
-	} else {
-		tubeLine := strings.Join(slackReq.Text, " ")
+		encoder.Encode(slackResp)
+		return
+	}
 
+	tubeLine := strings.Join(slackReq.Text, " ")
+
+	slackResp.ResponseType = "ephemeral"
+	slackResp.Text = fmt.Sprintf("Slack Tube Service")
+
+	var lines []string
+	if tubeLine != "" {
+		lines = []string{tubeLine}
+	}
+
+	reportsMap, err := tubeService.GetStatusFor(lines)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		slackResp.Text = "Error while retrieving information from TFL"
+		encoder.Encode(slackResp)
+		return
+	} else if len(reportsMap) == 0 {
 		w.WriteHeader(http.StatusOK)
-		slackResp.ResponseType = "ephemeral"
-		slackResp.Text = fmt.Sprintf("Slack Tube Service")
-
-		var lines []string
-		if tubeLine != "" {
-			lines = []string{tubeLine}
-		}
-
-		reportsMap, err := tubeService.GetStatusFor(lines)
-
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			slackResp.Text = "Error while retrieving information from TFL"
-		} else if len(reportsMap) == 0 {
-			w.WriteHeader(http.StatusNotFound)
-			slackResp.Text = "Not a recognised line."
-		}
-
-		slackResp.Attachments = reportMapToSortedAttachmentsArray(reportsMap)
+		slackResp.Text = "Not a recognised line."
+		encoder.Encode(slackResp)
+		return
 	}
 
-	if err := json.NewEncoder(w).Encode(slackResp); err != nil {
-		log.Panic(err)
-	}
+	w.WriteHeader(http.StatusOK)
+	slackResp.Attachments = reportMapToSortedAttachmentsArray(reportsMap)
+	encoder.Encode(slackResp)
 }
 
 func reportMapToSortedAttachmentsArray(inputMap map[string]tfl.Report) []attachment {
@@ -119,9 +96,9 @@ func slackTokenRequestHandler(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		tokenStore.addToken(token)
+		tokenStore.AddToken(token)
 	case http.MethodDelete:
-		tokenStore.deleteToken(token)
+		tokenStore.DeleteToken(token)
 	}
 	w.WriteHeader(http.StatusAccepted)
 }

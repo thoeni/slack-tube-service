@@ -10,7 +10,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 )
@@ -21,26 +20,6 @@ const (
 	jubilee         string = "\"Jubilee\":{\"Name\":\"Jubilee\",\"LineStatuses\":[{\"StatusSeverity\":5,\"StatusSeverityDescription\":\"\",\"Reason\":\"\"}]}"
 	waterlooAndCity string = "\"Waterloo & City\":{\"Name\":\"Waterloo \u0026 City\",\"LineStatuses\":[{\"StatusSeverity\":5,\"StatusSeverityDescription\":\"\",\"Reason\":\"\"}]}"
 )
-
-func TestReportMapToSortedAttachmentsArray_whenInputMap_thenOutputArrayIsSorted(t *testing.T) {
-
-	inputMap := make(map[string]tfl.Report, 3)
-	inputMap["Waterloo & City"] = tfl.Report{"Waterloo & City", []tfl.Status{{StatusSeverity: 5, Reason: "", StatusSeverityDescription: ""}}}
-	inputMap["Bakerloo"] = tfl.Report{"Bakerloo", []tfl.Status{{StatusSeverity: 5, Reason: "", StatusSeverityDescription: ""}}}
-	inputMap["Jubilee"] = tfl.Report{"Jubilee", []tfl.Status{{StatusSeverity: 5, Reason: "", StatusSeverityDescription: ""}}}
-
-	outputArray := reportMapToSortedAttachmentsArray(inputMap)
-
-	if !strings.Contains(outputArray[0].Text, "Bakerloo") {
-		t.Errorf("The first element contained: %s", outputArray[0].Text)
-	}
-	if !strings.Contains(outputArray[1].Text, "Jubilee") {
-		t.Errorf("The second element contained: %s", outputArray[1].Text)
-	}
-	if !strings.Contains(outputArray[2].Text, "Waterloo & City") {
-		t.Errorf("The third element contained: %s", outputArray[2].Text)
-	}
-}
 
 func TestLineStatusHandler_whenCalledToRetrieveAllLines(t *testing.T) {
 
