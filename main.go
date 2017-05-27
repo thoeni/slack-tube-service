@@ -30,14 +30,13 @@ var (
 		[]string{"method", "tubeLine"},
 	)
 
-	tflResponseLatencies = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
+	tflResponseLatencies = prometheus.NewGauge(
+		prometheus.GaugeOpts{
 			Namespace: "production",
 			Subsystem: "tfl_client",
 			Name:      "response_latencies",
 			Help:      "Distribution of http response latencies (ms), classified by code and method.",
 		},
-		[]string{"method"},
 	)
 )
 
