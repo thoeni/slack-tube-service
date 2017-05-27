@@ -27,7 +27,6 @@ func slackRequestHandler(w http.ResponseWriter, r *http.Request) {
 		encoder.Encode(slackResp)
 		return
 	} else if err := decoder.Decode(slackReq, r.PostForm); err != nil {
-		println("Decoding error")
 		w.WriteHeader(http.StatusBadRequest)
 		slackResp.Text = "Request provided coudln't be decoded"
 		encoder.Encode(slackResp)

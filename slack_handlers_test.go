@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/assert"
 	"github.com/thoeni/go-tfl"
 	"github.com/thoeni/slack-tube-service/mocks"
 	"io/ioutil"
@@ -11,7 +12,6 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strconv"
-	"strings"
 	"testing"
 )
 
@@ -30,15 +30,9 @@ func TestReportMapToSortedAttachmentsArray_whenInputMap_thenOutputArrayIsSorted(
 
 	outputArray := reportMapToSortedAttachmentsArray(inputMap)
 
-	if !strings.Contains(outputArray[0].Text, "Bakerloo") {
-		t.Errorf("The first element contained: %s", outputArray[0].Text)
-	}
-	if !strings.Contains(outputArray[1].Text, "Jubilee") {
-		t.Errorf("The second element contained: %s", outputArray[1].Text)
-	}
-	if !strings.Contains(outputArray[2].Text, "Waterloo & City") {
-		t.Errorf("The third element contained: %s", outputArray[2].Text)
-	}
+	assert.Contains(t, outputArray[0].Text, "Bakerloo")
+	assert.Contains(t, outputArray[1].Text, "Jubilee")
+	assert.Contains(t, outputArray[2].Text, "Waterloo & City")
 }
 
 func TestSlackStatusHandler_whenCalledToRetrieveAllLines(t *testing.T) {
@@ -64,12 +58,9 @@ func TestSlackStatusHandler_whenCalledToRetrieveAllLines(t *testing.T) {
 
 	resp := responseRecorder.Result()
 	body, _ := ioutil.ReadAll(resp.Body)
-	if resp.StatusCode != 200 {
-		t.Errorf("Status code returned was %d instead of expected 200", resp.StatusCode)
-	}
-	if bytes.Compare(body, []byte(expectedBody)) != 0 {
-		t.Errorf("Body and expected body do not match: received:\n%s \n expected:\n%s", string(body), expectedBody)
-	}
+
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, []byte(expectedBody), body)
 }
 
 func TestSlackStatusHandler_whenCalledToRetrieveSingleLine(t *testing.T) {
@@ -96,12 +87,9 @@ func TestSlackStatusHandler_whenCalledToRetrieveSingleLine(t *testing.T) {
 
 	resp := responseRecorder.Result()
 	body, _ := ioutil.ReadAll(resp.Body)
-	if resp.StatusCode != 200 {
-		t.Errorf("Status code returned was %d instead of expected 200", resp.StatusCode)
-	}
-	if bytes.Compare(body, []byte(expectedBody)) != 0 {
-		t.Errorf("Body and expected body do not match: received:\n%s \n expected:\n%s", string(body), expectedBody)
-	}
+
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, []byte(expectedBody), body)
 }
 
 func TestSlackStatusHandler_whenCalledToRetrieveUnexistingLine_thenReturnNotFound(t *testing.T) {
@@ -127,12 +115,9 @@ func TestSlackStatusHandler_whenCalledToRetrieveUnexistingLine_thenReturnNotFoun
 
 	resp := responseRecorder.Result()
 	body, _ := ioutil.ReadAll(resp.Body)
-	if resp.StatusCode != 200 {
-		t.Errorf("Status code returned was %d instead of expected 200", resp.StatusCode)
-	}
-	if !strings.Contains(string(body), "\"text\":\"Not a recognised line.\"") {
-		t.Errorf("Body did not contain the expected substring:\n%s \n expected substring:\n%s", string(body), "\"text\":\"Not a recognised line\".")
-	}
+
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.Contains(t, string(body), "\"text\":\"Not a recognised line.\"")
 }
 
 func TestSlackStatusHandler_whenMissingToken_thenReturnUnauthorised(t *testing.T) {
@@ -153,9 +138,8 @@ func TestSlackStatusHandler_whenMissingToken_thenReturnUnauthorised(t *testing.T
 	newRouter().ServeHTTP(responseRecorder, req)
 
 	resp := responseRecorder.Result()
-	if resp.StatusCode != 401 {
-		t.Errorf("Status code returned was %d instead of expected 401", resp.StatusCode)
-	}
+
+	assert.Equal(t, 401, resp.StatusCode)
 }
 
 func TestSlackStatusHandler_whenRequestInvalid_thenReturnBadRequest(t *testing.T) {
@@ -176,9 +160,8 @@ func TestSlackStatusHandler_whenRequestInvalid_thenReturnBadRequest(t *testing.T
 	newRouter().ServeHTTP(responseRecorder, req)
 
 	resp := responseRecorder.Result()
-	if resp.StatusCode != 400 {
-		t.Errorf("Status code returned was %d instead of expected 400", resp.StatusCode)
-	}
+
+	assert.Equal(t, 400, resp.StatusCode)
 }
 
 func newMockTokenStore(c *gomock.Controller, output []string, e error) Repository {

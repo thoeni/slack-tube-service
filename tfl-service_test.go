@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/golang/mock/gomock"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 	"github.com/thoeni/go-tfl"
 	"github.com/thoeni/slack-tube-service/mocks"
 	"testing"
@@ -26,9 +27,8 @@ func TestGetStatusFor_whenValuesReturnedByTflClient(t *testing.T) {
 	}
 	actualSeverity := result["line3"].LineStatuses[0].StatusSeverity
 	expectedSeverity := 2
-	if actualSeverity != expectedSeverity {
-		t.Errorf("Status severity for line3 in test was %d instead of %d", actualSeverity, expectedSeverity)
-	}
+
+	assert.Equal(t, expectedSeverity, actualSeverity, "Status severity for line3 in test was %d instead of %d", actualSeverity, expectedSeverity)
 }
 
 func TestGetStatusFor_whenEmptyValuesReturnedByTflClient(t *testing.T) {
@@ -37,9 +37,7 @@ func TestGetStatusFor_whenEmptyValuesReturnedByTflClient(t *testing.T) {
 
 	result, _ := s.GetStatusFor([]string{"line1", "line3"})
 
-	if !(len(result) == 0) {
-		t.Errorf("There should be no lines in the result. There are %d instead", len(result))
-	}
+	assert.Equal(t, 0, len(result), "There should be no lines in the result. There are %d instead", len(result))
 }
 
 func TestGetStatusFor_whenNoLinesSpecified_thenAllLinesAreReturned(t *testing.T) {
@@ -48,9 +46,7 @@ func TestGetStatusFor_whenNoLinesSpecified_thenAllLinesAreReturned(t *testing.T)
 
 	result, _ := s.GetStatusFor([]string{})
 
-	if !(len(result) == 3) {
-		t.Errorf("All lines should be in the result as no lines were specified. There were %d instead.", len(result))
-	}
+	assert.Equal(t, 3, len(result), "All lines should be in the result as no lines were specified. There were %d instead.", len(result))
 }
 
 func TestGetStatusFor_whenTflClientReturnsError(t *testing.T) {
@@ -63,9 +59,7 @@ func TestGetStatusFor_whenTflClientReturnsError(t *testing.T) {
 		t.Error("Service should propagate Tfl error")
 	}
 
-	if !(len(result) == 0) {
-		t.Errorf("There should be no lines in the result. There are %d instead", len(result))
-	}
+	assert.Equal(t, 0, len(result), "There should be no lines in the result. There are %d instead", len(result))
 }
 
 func TestInMemoryCachedClient_WhenTimeLessThanInvalidate_ThenDoesNotCallTflClientAgain(t *testing.T) {
@@ -110,9 +104,8 @@ func TestInMemoryCachedClient_WhenSetUrl_ThenChangesTheUnderlyingClientURL(t *te
 func TestFilter(t *testing.T) {
 	onlyOneLine := filter(tfl.ReportArrayToMap(validTflClientResponse), []string{"Line2"})
 	actualLength := len(onlyOneLine)
-	if actualLength != 1 {
-		t.Errorf("Actual length was %d instead of expected 1", actualLength)
-	}
+
+	assert.Equal(t, 1, actualLength, "Actual length was %d instead of expected 1", actualLength)
 }
 
 func initialiseServiceWithTflClientReponse(t *testing.T, r []tfl.Report, e error) (TubeService, *gomock.Controller) {

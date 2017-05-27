@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/golang/mock/gomock"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 	"github.com/thoeni/go-tfl"
 	"github.com/thoeni/slack-tube-service/mocks"
 	"io/ioutil"
@@ -37,12 +38,9 @@ func TestLineStatusHandler_whenCalledToRetrieveAllLines(t *testing.T) {
 
 	resp := responseRecorder.Result()
 	body, _ := ioutil.ReadAll(resp.Body)
-	if resp.StatusCode != 200 {
-		t.Errorf("Status code returned was %d instead of expected 200", resp.StatusCode)
-	}
-	if bytes.Compare(body, []byte(expectedBody)) != 0 {
-		t.Errorf("Body and expected body do not match: received:\n%s \n expected:\n%s", string(body), expectedBody)
-	}
+
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, []byte(expectedBody), body)
 }
 
 func TestLineStatusHandler_whenCalledToRetrieveSingleLine(t *testing.T) {
@@ -61,12 +59,9 @@ func TestLineStatusHandler_whenCalledToRetrieveSingleLine(t *testing.T) {
 
 	resp := responseRecorder.Result()
 	body, _ := ioutil.ReadAll(resp.Body)
-	if resp.StatusCode != 200 {
-		t.Errorf("Status code returned was %d instead of expected 200", resp.StatusCode)
-	}
-	if bytes.Compare(body, []byte(expectedBody)) != 0 {
-		t.Errorf("Body and expected body do not match: received:\n%s \n expected:\n%s", string(body), expectedBody)
-	}
+
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, []byte(expectedBody), body)
 }
 
 func TestLineStatusHandler_whenServiceFails_Returns500(t *testing.T) {
@@ -84,12 +79,9 @@ func TestLineStatusHandler_whenServiceFails_Returns500(t *testing.T) {
 
 	resp := responseRecorder.Result()
 	body, _ := ioutil.ReadAll(resp.Body)
-	if resp.StatusCode != 500 {
-		t.Errorf("Status code returned was %d instead of expected 500", resp.StatusCode)
-	}
-	if bytes.Compare(body, []byte("\"There was an error getting information from TFL\"\n")) != 0 {
-		t.Errorf("Body and expected body do not match: received:\n%s \n expected:\n%s", string(body), "\"There was an error getting information from TFL\"\n")
-	}
+
+	assert.Equal(t, 500, resp.StatusCode)
+	assert.Equal(t, []byte("\"There was an error getting information from TFL\"\n"), body)
 }
 
 func TestLineStatusHandler_whenServiceReturnsEmptyLinesAndNoError_Returns404(t *testing.T) {
@@ -108,12 +100,9 @@ func TestLineStatusHandler_whenServiceReturnsEmptyLinesAndNoError_Returns404(t *
 
 	resp := responseRecorder.Result()
 	body, _ := ioutil.ReadAll(resp.Body)
-	if resp.StatusCode != 404 {
-		t.Errorf("Status code returned was %d instead of expected 404", resp.StatusCode)
-	}
-	if bytes.Compare(body, []byte("\"Line requested not found\"\n")) != 0 {
-		t.Errorf("Body and expected body do not match: received:\n%s \n expected:\n%s", string(body), "\"Line requested not found\"\n")
-	}
+
+	assert.Equal(t, 404, resp.StatusCode)
+	assert.Equal(t, []byte("\"Line requested not found\"\n"), body)
 }
 
 func TestLineStatusHandler_Integration_HappyPathAllLines(t *testing.T) {
@@ -143,12 +132,9 @@ func TestLineStatusHandler_Integration_HappyPathAllLines(t *testing.T) {
 
 	resp := responseRecorder.Result()
 	body, _ := ioutil.ReadAll(resp.Body)
-	if resp.StatusCode != 200 {
-		t.Errorf("Status code returned was %d instead of expected 200", resp.StatusCode)
-	}
-	if bytes.Compare(body, []byte(expectedBodyFromTflResponse)) != 0 {
-		t.Errorf("Body and expected body do not match: received:\n%s \n expected:\n%s", string(body), expectedBodyFromTflResponse)
-	}
+
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, []byte(expectedBodyFromTflResponse), body)
 }
 
 func TestLineStatusHandler_Integration_HappyPathSingleLine(t *testing.T) {
@@ -178,12 +164,9 @@ func TestLineStatusHandler_Integration_HappyPathSingleLine(t *testing.T) {
 
 	resp := responseRecorder.Result()
 	body, _ := ioutil.ReadAll(resp.Body)
-	if resp.StatusCode != 200 {
-		t.Errorf("Status code returned was %d instead of expected 200", resp.StatusCode)
-	}
-	if bytes.Compare(body, []byte(expectedBodyFromTflResponse)) != 0 {
-		t.Errorf("Body and expected body do not match: received:\n%s \n expected:\n%s", string(body), expectedBodyFromTflResponse)
-	}
+
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, []byte(expectedBodyFromTflResponse), body)
 }
 
 type responseWriterMock struct {
