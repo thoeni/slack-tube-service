@@ -23,9 +23,13 @@ type InMemoryCachedClient struct {
 
 func (c *InMemoryCachedClient) GetTubeStatus() ([]tfl.Report, error) {
 	if time.Since(c.LastUpdated).Seconds() > c.InvalidateIntervalInSeconds {
+		start := time.Now()
 		r, e := c.Client.GetTubeStatus()
 		c.TubeStatus = r
 		c.LastUpdated = time.Now()
+		elapsed := time.Since(start)
+		msElapsed := elapsed / time.Millisecond
+		tflResponseLatencies.WithLabelValues("getTubeStatus").Observe(float64(msElapsed))
 		return c.TubeStatus, e
 	}
 	return c.TubeStatus, nil

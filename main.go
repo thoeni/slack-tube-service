@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/boltdb/bolt"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/cors"
 	"github.com/thoeni/go-tfl"
 )
@@ -17,6 +18,28 @@ var tokenStore Repository
 var listenPort = os.Getenv("PORT")
 
 const defaultPort = "1123"
+
+var (
+	httpResponsesTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "production",
+			Subsystem: "http_server",
+			Name:      "http_responses_total",
+			Help:      "The count of http responses issued, classified by method and tubeLine.",
+		},
+		[]string{"method", "tubeLine"},
+	)
+
+	tflResponseLatencies = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: "production",
+			Subsystem: "tfl_client",
+			Name:      "response_latencies",
+			Help:      "Distribution of http response latencies (ms), classified by code and method.",
+		},
+		[]string{"method"},
+	)
+)
 
 var tflClient = &InMemoryCachedClient{
 	tfl.NewClient(),
@@ -39,6 +62,9 @@ func init() {
 	} else {
 		fmt.Printf("BoltDB initiliased (%v), bucket created!\n", tokenStore)
 	}
+
+	prometheus.MustRegister(httpResponsesTotal)
+	prometheus.MustRegister(tflResponseLatencies)
 }
 
 func main() {

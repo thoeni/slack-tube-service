@@ -40,6 +40,7 @@ func slackRequestHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tubeLine := strings.Join(slackReq.Text, " ")
+	httpResponsesTotal.WithLabelValues(r.RequestURI, tubeLine).Inc()
 
 	slackResp.ResponseType = "ephemeral"
 	slackResp.Text = fmt.Sprintf("Slack Tube Service")
