@@ -27,9 +27,11 @@ func (c *InMemoryCachedClient) GetTubeStatus() ([]tfl.Report, error) {
 		r, e := c.Client.GetTubeStatus()
 		c.TubeStatus = r
 		c.LastUpdated = time.Now()
-		elapsed := time.Since(start)
-		msElapsed := elapsed / time.Millisecond
-		tflResponseLatencies.Set(float64(msElapsed))
+		go func() {
+			elapsed := time.Since(start)
+			msElapsed := elapsed / time.Millisecond
+			tflResponseLatencies.Set(float64(msElapsed))
+		}()
 		return c.TubeStatus, e
 	}
 	return c.TubeStatus, nil

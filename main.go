@@ -27,7 +27,7 @@ var (
 			Name:      "http_responses_total",
 			Help:      "The count of http responses issued, classified by method and tubeLine.",
 		},
-		[]string{"method", "tubeLine"},
+		[]string{"domain", "method", "tubeLine"},
 	)
 
 	tflResponseLatencies = prometheus.NewGauge(
