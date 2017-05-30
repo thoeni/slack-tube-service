@@ -43,7 +43,11 @@ func slackRequestHandler(w http.ResponseWriter, r *http.Request) {
 	teamDomain := strings.Replace(slackReq.TeamDomain, " ", "", -1)
 
 	go func() {
-		httpResponsesTotal.WithLabelValues(teamDomain, r.RequestURI, tubeLine).Inc()
+		tubeLineLabel := "all"
+		if tubeLine != "" {
+			tubeLineLabel = tubeLine
+		}
+		slackRequestsTotal.WithLabelValues(teamDomain, tubeLineLabel).Inc()
 	}()
 
 	slackResp.ResponseType = "ephemeral"

@@ -24,10 +24,20 @@ var (
 		prometheus.CounterOpts{
 			Namespace: "production",
 			Subsystem: "http_server",
-			Name:      "http_responses_total",
-			Help:      "The count of http responses issued, classified by method and tubeLine.",
+			Name:      "http_requests_total",
+			Help:      "The count of http responses issued, classified by method and requestURI.",
 		},
-		[]string{"domain", "method", "tubeLine"},
+		[]string{"method", "requestURI"},
+	)
+
+	slackRequestsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "production",
+			Subsystem: "http_server",
+			Name:      "slack_requests_total",
+			Help:      "The count of http requests received for tube status, classified by slackDomain and tubeLine.",
+		},
+		[]string{"domain", "tubeLine"},
 	)
 
 	tflResponseLatencies = prometheus.NewGauge(
@@ -63,6 +73,7 @@ func init() {
 	}
 
 	prometheus.MustRegister(httpResponsesTotal)
+	prometheus.MustRegister(slackRequestsTotal)
 	prometheus.MustRegister(tflResponseLatencies)
 }
 
