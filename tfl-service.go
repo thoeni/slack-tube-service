@@ -1,7 +1,7 @@
 package main
 
 import (
-	tfl "github.com/thoeni/go-tfl"
+	"github.com/thoeni/go-tfl"
 	"strings"
 	"time"
 )
@@ -14,35 +14,14 @@ type TubeService struct {
 	Client tfl.Client
 }
 
-type InMemoryCachedClient struct {
-	Client                      tfl.Client
-	TubeStatus                  []tfl.Report
-	LastUpdated                 time.Time
-	InvalidateIntervalInSeconds float64
-}
-
-func (c *InMemoryCachedClient) GetTubeStatus() ([]tfl.Report, error) {
-	if time.Since(c.LastUpdated).Seconds() > c.InvalidateIntervalInSeconds {
-		start := time.Now()
-		r, e := c.Client.GetTubeStatus()
-		c.TubeStatus = r
-		c.LastUpdated = time.Now()
-		go func() {
-			elapsed := time.Since(start)
-			msElapsed := elapsed / time.Millisecond
-			tflResponseLatencies.Set(float64(msElapsed))
-		}()
-		return c.TubeStatus, e
-	}
-	return c.TubeStatus, nil
-}
-
-func (c *InMemoryCachedClient) SetBaseURL(newURL string) {
-	c.Client.SetBaseURL(newURL)
-}
-
 func (s TubeService) GetStatusFor(lines []string) (map[string]tfl.Report, error) {
+	start := time.Now()
 	reports, err := s.Client.GetTubeStatus()
+	go func() {
+		elapsed := time.Since(start)
+		msElapsed := elapsed / time.Millisecond
+		tflResponseLatencies.Set(float64(msElapsed))
+	}()
 	if err != nil {
 		return nil, err
 	}

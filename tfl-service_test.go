@@ -66,7 +66,7 @@ func TestInMemoryCachedClient_WhenTimeLessThanInvalidate_ThenDoesNotCallTflClien
 	mockCtrl := gomock.NewController(t)
 	mockTflClient := mocks.NewMockClient(mockCtrl)
 	mockTflClient.EXPECT().GetTubeStatus().Times(0)
-	c := InMemoryCachedClient{
+	c := tfl.InMemoryCachedClient{
 		Client: mockTflClient,
 		InvalidateIntervalInSeconds: 10,
 		LastUpdated:                 time.Now().Add(-5 * time.Second),
@@ -79,7 +79,7 @@ func TestInMemoryCachedClient_WhenTimeLessThanInvalidate_ThenDoesCallTflClientTo
 	mockCtrl := gomock.NewController(t)
 	mockTflClient := mocks.NewMockClient(mockCtrl)
 	mockTflClient.EXPECT().GetTubeStatus().Times(1)
-	c := InMemoryCachedClient{
+	c := tfl.InMemoryCachedClient{
 		Client: mockTflClient,
 		InvalidateIntervalInSeconds: 10,
 		LastUpdated:                 time.Now().Add(-15 * time.Second),
@@ -92,7 +92,7 @@ func TestInMemoryCachedClient_WhenSetUrl_ThenChangesTheUnderlyingClientURL(t *te
 	mockCtrl := gomock.NewController(t)
 	mockTflClient := mocks.NewMockClient(mockCtrl)
 	mockTflClient.EXPECT().SetBaseURL("newUrl").Times(1)
-	c := InMemoryCachedClient{
+	c := tfl.InMemoryCachedClient{
 		Client: mockTflClient,
 		InvalidateIntervalInSeconds: 10,
 		LastUpdated:                 time.Now().Add(-15 * time.Second),

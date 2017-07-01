@@ -16,7 +16,7 @@ type route struct {
 
 type routes []route
 
-func withHttpMetricsFor(f http.HandlerFunc) func(w http.ResponseWriter, r *http.Request) {
+func withHTTPMetricsFor(f http.HandlerFunc) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		go func() {
 			httpResponsesTotal.WithLabelValues(r.Method, r.RequestURI).Inc()
@@ -47,24 +47,24 @@ var r = routes{
 		"get-all-lines-status",
 		[]string{http.MethodGet},
 		"/api/tubestatus/",
-		withHttpMetricsFor(lineStatusHandler),
+		withHTTPMetricsFor(lineStatusHandler),
 	},
 	route{
 		"get-line-status",
 		[]string{http.MethodGet},
 		"/api/tubestatus/{line}",
-		withHttpMetricsFor(lineStatusHandler),
+		withHTTPMetricsFor(lineStatusHandler),
 	},
 	route{
 		"slack-get-all-lines-status",
 		[]string{http.MethodPost},
 		"/api/slack/tubestatus/",
-		withHttpMetricsFor(slackRequestHandler),
+		withHTTPMetricsFor(slackRequestHandler),
 	},
 	route{
 		"slack-add-auth-token",
 		[]string{http.MethodPut, http.MethodDelete},
 		"/api/slack/token/{token}",
-		withHttpMetricsFor(slackTokenRequestHandler),
+		withHTTPMetricsFor(slackTokenRequestHandler),
 	},
 }

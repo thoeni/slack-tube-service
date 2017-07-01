@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 )
 
 const (
@@ -113,16 +112,9 @@ func TestLineStatusHandler_Integration_HappyPathAllLines(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	client := tfl.NewClient()
-	client.SetBaseURL(ts.URL + "/")
-
-	tflClient = &InMemoryCachedClient{
-		client,
-		[]tfl.Report{},
-		time.Now().Add(-121 * time.Second),
-		float64(120),
-	}
-	tubeService = TubeService{tflClient}
+	cachedTflClient := tfl.NewCachedClient(120)
+	cachedTflClient.SetBaseURL(ts.URL + "/")
+	tubeService = TubeService{cachedTflClient}
 
 	responseRecorder := httptest.NewRecorder()
 	expectedBodyFromTflResponse := "{\"bakerloo\":{\"Name\":\"Bakerloo\",\"LineStatuses\":[{\"StatusSeverity\":10,\"StatusSeverityDescription\":\"Good Service\",\"Reason\":\"\"}]},\"central\":{\"Name\":\"Central\",\"LineStatuses\":[{\"StatusSeverity\":10,\"StatusSeverityDescription\":\"Good Service\",\"Reason\":\"\"}]},\"circle\":{\"Name\":\"Circle\",\"LineStatuses\":[{\"StatusSeverity\":10,\"StatusSeverityDescription\":\"Good Service\",\"Reason\":\"\"}]},\"district\":{\"Name\":\"District\",\"LineStatuses\":[{\"StatusSeverity\":10,\"StatusSeverityDescription\":\"Good Service\",\"Reason\":\"\"}]},\"hammersmith & city\":{\"Name\":\"Hammersmith & City\",\"LineStatuses\":[{\"StatusSeverity\":10,\"StatusSeverityDescription\":\"Good Service\",\"Reason\":\"\"}]},\"jubilee\":{\"Name\":\"Jubilee\",\"LineStatuses\":[{\"StatusSeverity\":10,\"StatusSeverityDescription\":\"Good Service\",\"Reason\":\"\"}]},\"metropolitan\":{\"Name\":\"Metropolitan\",\"LineStatuses\":[{\"StatusSeverity\":10,\"StatusSeverityDescription\":\"Good Service\",\"Reason\":\"\"}]},\"northern\":{\"Name\":\"Northern\",\"LineStatuses\":[{\"StatusSeverity\":10,\"StatusSeverityDescription\":\"Good Service\",\"Reason\":\"\"}]},\"piccadilly\":{\"Name\":\"Piccadilly\",\"LineStatuses\":[{\"StatusSeverity\":10,\"StatusSeverityDescription\":\"Good Service\",\"Reason\":\"\"}]},\"victoria\":{\"Name\":\"Victoria\",\"LineStatuses\":[{\"StatusSeverity\":10,\"StatusSeverityDescription\":\"Good Service\",\"Reason\":\"\"}]},\"waterloo & city\":{\"Name\":\"Waterloo & City\",\"LineStatuses\":[{\"StatusSeverity\":10,\"StatusSeverityDescription\":\"Good Service\",\"Reason\":\"\"}]}}\n"
@@ -148,13 +140,9 @@ func TestLineStatusHandler_Integration_HappyPathSingleLine(t *testing.T) {
 	client := tfl.NewClient()
 	client.SetBaseURL(ts.URL + "/")
 
-	tflClient = &InMemoryCachedClient{
-		client,
-		[]tfl.Report{},
-		time.Now().Add(-121 * time.Second),
-		float64(120),
-	}
-	tubeService = TubeService{tflClient}
+	cachedTflClient := tfl.NewCachedClient(120)
+	cachedTflClient.SetBaseURL(ts.URL + "/")
+	tubeService = TubeService{cachedTflClient}
 
 	responseRecorder := httptest.NewRecorder()
 	expectedBodyFromTflResponse := "{\"Bakerloo\":{\"Name\":\"Bakerloo\",\"LineStatuses\":[{\"StatusSeverity\":10,\"StatusSeverityDescription\":\"Good Service\",\"Reason\":\"\"}]}}\n"

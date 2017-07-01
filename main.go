@@ -50,14 +50,7 @@ var (
 	)
 )
 
-var tflClient = &InMemoryCachedClient{
-	tfl.NewClient(),
-	[]tfl.Report{},
-	time.Now().Add(-121 * time.Second),
-	float64(120),
-}
-
-var tubeService TflService = TubeService{tflClient}
+var tubeService TflService = TubeService{tfl.NewCachedClient(120)}
 
 func init() {
 
