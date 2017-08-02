@@ -31,12 +31,16 @@ func slackRequestHandler(w http.ResponseWriter, r *http.Request) {
 		slackResp.Text = "There was an error parsing input data"
 		encoder.Encode(slackResp)
 		return
-	} else if err := decoder.Decode(slackReq, r.PostForm); err != nil {
+	}
+
+	if err := decoder.Decode(slackReq, r.PostForm); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		slackResp.Text = "Request provided coudln't be decoded"
 		encoder.Encode(slackResp)
 		return
-	} else if !isTokenValid(slackReq.Token) {
+	}
+
+	if !isTokenValid(slackReq.Token) {
 		fmt.Printf("Invalid token in request: %v from postForm: %v", slackReq, r.PostForm)
 		w.WriteHeader(http.StatusUnauthorized)
 		slackResp.Text = "Unauthorised"
@@ -46,7 +50,7 @@ func slackRequestHandler(w http.ResponseWriter, r *http.Request) {
 
 	if len(slackReq.Text) == 0 {
 		sr := NewEphemeral()
-		sr.Text = fmt.Sprint("This slack integration provides two options:\n-`/tube status` or `/tube status <lineName>` for example `/tube status bakerloo`\n-`/tube subscribe <lineName>`, for example `/tube subscribe bakerloo`")
+		sr.Text = fmt.Sprint("This slack integration provides two options:\n\n-`/tube status` or `/tube status <lineName>` for example `/tube status bakerloo`\n-`/tube subscribe <lineName>`, for example `/tube subscribe bakerloo`\n\nFor more details please visit <https://thoeni.io/project/slack-tube-service/|slack-tube-service project page>")
 		w.WriteHeader(http.StatusOK)
 		encoder.Encode(sr)
 		return
