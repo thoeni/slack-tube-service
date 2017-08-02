@@ -44,7 +44,15 @@ func slackRequestHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if len(slackReq.Text) == 0 {
+		sr := NewEphemeral()
+		sr.Text = fmt.Sprint("This slack integration provides two options:\n-`/tube status` or `/tube status <lineName>` for example `/tube status bakerloo`\n-`/tube subscribe <lineName>`, for example `/tube subscribe bakerloo`")
+		w.WriteHeader(http.StatusOK)
+		encoder.Encode(sr)
+		return
+	}
 	slackInput := strings.Split(slackReq.Text[0], " ")
+
 	slackCommand := slackInput[0]
 	slackCommandArgs := slackInput[1:]
 
@@ -94,7 +102,6 @@ func statusCommand(slackCommandArgs []string, slackRequest slackRequest) (*slack
 		return &r, errors.Wrap(err, "TFLError")
 	} else if len(reportsMap) == 0 {
 		r.Text = "Not a recognised line."
-		fmt.Println("Line not recognised...")
 		return &r, errors.New("LineNotRecognised")
 	}
 
@@ -150,15 +157,11 @@ func subscribeCommand(slackCommandArgs []string, slackRequest slackRequest) (*sl
 	username := slackRequest.Username
 	subscribedLines := []string{strings.Join(slackCommandArgs, " ")}
 
-	if res, err := statusCommand(slackCommandArgs, slackRequest); err != nil {
-		fmt.Println("Error out of statusCommand")
+	if _, err := statusCommand(slackCommandArgs, slackRequest); err != nil {
 		if strings.Contains(err.Error(), "LineNotRecognised") {
-			fmt.Println("Error is line not recognised")
 			r.Text = fmt.Sprintf("Line %s is not a recognised line, therefore subscription is not available", subscribedLines[0])
 			return &r, errors.Wrap(err, "SubscriptionNotAvailable")
 		}
-	} else {
-		fmt.Println(*res)
 	}
 
 	if err := putNewSlackUser(id, username, subscribedLines); err != nil {
