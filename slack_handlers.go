@@ -153,6 +153,11 @@ func subscribeCommand(slackCommandArgs []string, slackRequest slackRequest) (*sl
 
 	var r slackResponse = NewEphemeral()
 
+	if len(slackCommandArgs) == 0 {
+		r.Text = fmt.Sprintf("A line to subscribe to must be specified :thinking_face:. For example `/tube subscribe bakerloo`")
+		return &r, errors.New("SubscriptionNotAvailable")
+	}
+
 	id := fmt.Sprintf("%s-%s", slackRequest.TeamID, slackRequest.Username)
 	username := slackRequest.Username
 	subscribedLines := []string{strings.Join(slackCommandArgs, " ")}
