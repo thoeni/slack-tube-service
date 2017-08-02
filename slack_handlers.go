@@ -50,11 +50,11 @@ func slackRequestHandler(w http.ResponseWriter, r *http.Request) {
 
 	switch slackCommand {
 	case "status":
-		sr, _ := statusCommand(slackCommandArgs, slackReq.TeamDomain)
+		sr, _ := statusCommand(slackCommandArgs, *slackReq)
 		w.WriteHeader(http.StatusOK)
 		encoder.Encode(sr)
 	case "subscribe":
-		sr, _ := subscribeCommand(slackCommandArgs, slackReq.TeamID, slackReq.Username)
+		sr, _ := subscribeCommand(slackCommandArgs, *slackReq)
 		w.WriteHeader(http.StatusOK)
 		encoder.Encode(sr)
 	default:
@@ -65,12 +65,12 @@ func slackRequestHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func statusCommand(slackCommandArgs []string, domain string) (*slackResponse, error) {
+func statusCommand(slackCommandArgs []string, slackRequest slackRequest) (*slackResponse, error) {
 
 	var r slackResponse = NewEphemeral()
 
 	tubeLine := strings.Join(slackCommandArgs, " ")
-	teamDomain := strings.Replace(domain, " ", "", -1)
+	teamDomain := strings.Replace(slackRequest.TeamDomain, " ", "", -1)
 
 	go func() {
 		tubeLineLabel := "all"
@@ -94,7 +94,8 @@ func statusCommand(slackCommandArgs []string, domain string) (*slackResponse, er
 		return &r, errors.Wrap(err, "TFLError")
 	} else if len(reportsMap) == 0 {
 		r.Text = "Not a recognised line."
-		return &r, errors.Wrap(err, "LineNotRecognised")
+		fmt.Println("Line not recognised...")
+		return &r, errors.New("LineNotRecognised")
 	}
 
 	r.Attachments = reportMapToSortedAttachmentsArray(reportsMap)
@@ -141,12 +142,24 @@ type slackUserItem struct {
 	SubscribedLines []string `dynamodbav:"subscribedLines""`
 }
 
-func subscribeCommand(slackCommandArgs []string, teamId string, username string) (*slackResponse, error) {
+func subscribeCommand(slackCommandArgs []string, slackRequest slackRequest) (*slackResponse, error) {
 
 	var r slackResponse = NewEphemeral()
 
-	id := fmt.Sprintf("%s-%s", teamId, username)
+	id := fmt.Sprintf("%s-%s", slackRequest.TeamID, slackRequest.Username)
+	username := slackRequest.Username
 	subscribedLines := []string{strings.Join(slackCommandArgs, " ")}
+
+	if res, err := statusCommand(slackCommandArgs, slackRequest); err != nil {
+		fmt.Println("Error out of statusCommand")
+		if strings.Contains(err.Error(), "LineNotRecognised") {
+			fmt.Println("Error is line not recognised")
+			r.Text = fmt.Sprintf("Line %s is not a recognised line, therefore subscription is not available", subscribedLines[0])
+			return &r, errors.Wrap(err, "SubscriptionNotAvailable")
+		}
+	} else {
+		fmt.Println(*res)
+	}
 
 	if err := putNewSlackUser(id, username, subscribedLines); err != nil {
 		if strings.Contains(err.Error(), "UserAlreadyExists") {
