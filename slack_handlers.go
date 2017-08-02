@@ -22,7 +22,7 @@ func slackRequestHandler(w http.ResponseWriter, r *http.Request) {
 	encoder := json.NewEncoder(w)
 	encoder.SetEscapeHTML(false)
 
-	var slackResp slackResponse
+	var slackResp slackResponse = NewEphemeral()
 	var slackReq = new(slackRequest)
 	decoder := schema.NewDecoder()
 
@@ -54,11 +54,12 @@ func slackRequestHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		encoder.Encode(sr)
 	case "subscribe":
+		sr, _ := subscribeCommand(slackCommandArgs, slackReq.TeamID, slackReq.Username)
+		w.WriteHeader(http.StatusOK)
+		encoder.Encode(sr)
 	default:
-		sr := slackResponse{
-			ResponseType: "ephemeral",
-			Text:         fmt.Sprintf("Unrecognised command: %s", slackCommand),
-		}
+		sr := NewEphemeral()
+		sr.Text = fmt.Sprintf("Unrecognised command: %s", slackCommand)
 		w.WriteHeader(http.StatusOK)
 		encoder.Encode(sr)
 	}
@@ -66,7 +67,7 @@ func slackRequestHandler(w http.ResponseWriter, r *http.Request) {
 
 func statusCommand(slackCommandArgs []string, domain string) (*slackResponse, error) {
 
-	var r slackResponse
+	var r slackResponse = NewEphemeral()
 
 	tubeLine := strings.Join(slackCommandArgs, " ")
 	teamDomain := strings.Replace(domain, " ", "", -1)
@@ -79,7 +80,6 @@ func statusCommand(slackCommandArgs []string, domain string) (*slackResponse, er
 		slackRequestsTotal.WithLabelValues(teamDomain, tubeLineLabel).Inc()
 	}()
 
-	r.ResponseType = "ephemeral"
 	r.Text = fmt.Sprintf("Slack Tube Service")
 
 	var lines []string
@@ -141,45 +141,28 @@ type slackUserItem struct {
 	SubscribedLines []string `dynamodbav:"subscribedLines""`
 }
 
-func subscribeToLine(w http.ResponseWriter, r *http.Request) {
+func subscribeCommand(slackCommandArgs []string, teamId string, username string) (*slackResponse, error) {
 
-	var slackReq = new(slackRequest)
-	decoder := schema.NewDecoder()
+	var r slackResponse = NewEphemeral()
 
-	if err := r.ParseForm(); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(fmt.Sprint(err)))
-		return
-	}
-
-	if err := decoder.Decode(slackReq, r.PostForm); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(fmt.Sprint(err)))
-		return
-	}
-
-	id := fmt.Sprintf("%s-%s", slackReq.TeamID, slackReq.Username)
-	username := slackReq.Username
-	subscribedLines := []string{strings.Join(slackReq.Text, " ")}
+	id := fmt.Sprintf("%s-%s", teamId, username)
+	subscribedLines := []string{strings.Join(slackCommandArgs, " ")}
 
 	if err := putNewSlackUser(id, username, subscribedLines); err != nil {
 		if strings.Contains(err.Error(), "UserAlreadyExists") {
 			if err := updateExistingSlackUser(id, username, subscribedLines); err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				w.Write([]byte(fmt.Sprint(err)))
-				return
+				r.Text = fmt.Sprintf("Error while updating subscriptions for user %s", username)
+				return &r, nil
 			}
-			w.WriteHeader(http.StatusAccepted)
-			return
+			r.Text = fmt.Sprintf("Line %s added to subscriptions for existing user %s", subscribedLines[0], username)
+			return &r, nil
 		} else {
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(fmt.Sprint(err)))
-			return
+			r.Text = fmt.Sprintf("Error while creating subscriptions for user %s", username)
+			return &r, nil
 		}
-	} else {
-		w.WriteHeader(http.StatusAccepted)
-		return
 	}
+	r.Text = fmt.Sprintf("Line %s added to subscriptions for new user %s", subscribedLines[0], username)
+	return &r, nil
 }
 
 func putNewSlackUser(id string, username string, subscribedLines []string) error {

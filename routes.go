@@ -67,10 +67,4 @@ var r = routes{
 		"/api/slack/token/{token}",
 		withHTTPMetricsFor(slackTokenRequestHandler),
 	},
-	route{
-		"slack-subscribe-to-line",
-		[]string{http.MethodPost},
-		"/api/slack/subscribe/",
-		subscribeToLine,
-	},
 }
