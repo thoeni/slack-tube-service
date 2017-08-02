@@ -3,8 +3,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
+	"github.com/pkg/errors"
 	"github.com/thoeni/go-tfl"
 	"net/http"
 	"sort"
@@ -17,7 +22,7 @@ func slackRequestHandler(w http.ResponseWriter, r *http.Request) {
 	encoder := json.NewEncoder(w)
 	encoder.SetEscapeHTML(false)
 
-	var slackResp slackResponse
+	var slackResp slackResponse = NewEphemeral()
 	var slackReq = new(slackRequest)
 	decoder := schema.NewDecoder()
 
@@ -39,8 +44,41 @@ func slackRequestHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tubeLine := strings.Join(slackReq.Text, " ")
-	teamDomain := strings.Replace(slackReq.TeamDomain, " ", "", -1)
+	if len(slackReq.Text) == 0 {
+		sr := NewEphemeral()
+		sr.Text = fmt.Sprint("This slack integration provides two options:\n-`/tube status` or `/tube status <lineName>` for example `/tube status bakerloo`\n-`/tube subscribe <lineName>`, for example `/tube subscribe bakerloo`")
+		w.WriteHeader(http.StatusOK)
+		encoder.Encode(sr)
+		return
+	}
+	slackInput := strings.Split(slackReq.Text[0], " ")
+
+	slackCommand := slackInput[0]
+	slackCommandArgs := slackInput[1:]
+
+	switch slackCommand {
+	case "status":
+		sr, _ := statusCommand(slackCommandArgs, *slackReq)
+		w.WriteHeader(http.StatusOK)
+		encoder.Encode(sr)
+	case "subscribe":
+		sr, _ := subscribeCommand(slackCommandArgs, *slackReq)
+		w.WriteHeader(http.StatusOK)
+		encoder.Encode(sr)
+	default:
+		sr := NewEphemeral()
+		sr.Text = fmt.Sprintf("Unrecognised command: %s", slackCommand)
+		w.WriteHeader(http.StatusOK)
+		encoder.Encode(sr)
+	}
+}
+
+func statusCommand(slackCommandArgs []string, slackRequest slackRequest) (*slackResponse, error) {
+
+	var r slackResponse = NewEphemeral()
+
+	tubeLine := strings.Join(slackCommandArgs, " ")
+	teamDomain := strings.Replace(slackRequest.TeamDomain, " ", "", -1)
 
 	go func() {
 		tubeLineLabel := "all"
@@ -50,8 +88,7 @@ func slackRequestHandler(w http.ResponseWriter, r *http.Request) {
 		slackRequestsTotal.WithLabelValues(teamDomain, tubeLineLabel).Inc()
 	}()
 
-	slackResp.ResponseType = "ephemeral"
-	slackResp.Text = fmt.Sprintf("Slack Tube Service")
+	r.Text = fmt.Sprintf("Slack Tube Service")
 
 	var lines []string
 	if tubeLine != "" {
@@ -61,20 +98,15 @@ func slackRequestHandler(w http.ResponseWriter, r *http.Request) {
 	reportsMap, err := tubeService.GetStatusFor(lines)
 
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		slackResp.Text = "Error while retrieving information from TFL"
-		encoder.Encode(slackResp)
-		return
+		r.Text = "Error while retrieving information from TFL"
+		return &r, errors.Wrap(err, "TFLError")
 	} else if len(reportsMap) == 0 {
-		w.WriteHeader(http.StatusOK)
-		slackResp.Text = "Not a recognised line."
-		encoder.Encode(slackResp)
-		return
+		r.Text = "Not a recognised line."
+		return &r, errors.New("LineNotRecognised")
 	}
 
-	w.WriteHeader(http.StatusOK)
-	slackResp.Attachments = reportMapToSortedAttachmentsArray(reportsMap)
-	encoder.Encode(slackResp)
+	r.Attachments = reportMapToSortedAttachmentsArray(reportsMap)
+	return &r, nil
 }
 
 func reportMapToSortedAttachmentsArray(inputMap map[string]tfl.Report) []attachment {
@@ -109,4 +141,92 @@ func slackTokenRequestHandler(w http.ResponseWriter, r *http.Request) {
 		tokenStore.DeleteToken(token)
 	}
 	w.WriteHeader(http.StatusAccepted)
+}
+
+type slackUserItem struct {
+	ID              string   `dynamodbav:"id""`
+	Username        string   `dynamodbav:"username""`
+	SubscribedLines []string `dynamodbav:"subscribedLines""`
+}
+
+func subscribeCommand(slackCommandArgs []string, slackRequest slackRequest) (*slackResponse, error) {
+
+	var r slackResponse = NewEphemeral()
+
+	id := fmt.Sprintf("%s-%s", slackRequest.TeamID, slackRequest.Username)
+	username := slackRequest.Username
+	subscribedLines := []string{strings.Join(slackCommandArgs, " ")}
+
+	if _, err := statusCommand(slackCommandArgs, slackRequest); err != nil {
+		if strings.Contains(err.Error(), "LineNotRecognised") {
+			r.Text = fmt.Sprintf("Line %s is not a recognised line, therefore subscription is not available", subscribedLines[0])
+			return &r, errors.Wrap(err, "SubscriptionNotAvailable")
+		}
+	}
+
+	if err := putNewSlackUser(id, username, subscribedLines); err != nil {
+		if strings.Contains(err.Error(), "UserAlreadyExists") {
+			if err := updateExistingSlackUser(id, username, subscribedLines); err != nil {
+				r.Text = fmt.Sprintf("Error while updating subscriptions for user %s", username)
+				return &r, nil
+			}
+			r.Text = fmt.Sprintf("Line %s added to subscriptions for existing user %s", subscribedLines[0], username)
+			return &r, nil
+		} else {
+			r.Text = fmt.Sprintf("Error while creating subscriptions for user %s", username)
+			return &r, nil
+		}
+	}
+	r.Text = fmt.Sprintf("Line %s added to subscriptions for new user %s", subscribedLines[0], username)
+	return &r, nil
+}
+
+func putNewSlackUser(id string, username string, subscribedLines []string) error {
+
+	item, err := dynamodbattribute.MarshalMap(slackUserItem{
+		ID:              id,
+		Username:        username,
+		SubscribedLines: subscribedLines,
+	})
+	if err != nil {
+		return errors.Wrap(err, "Something went wrong while marshalling the user")
+	}
+
+	ce := "attribute_not_exists(id)"
+	rv := "ALL_OLD"
+
+	_, err = svc.PutItem(&dynamodb.PutItemInput{
+		TableName:           aws.String("slack-users"),
+		ReturnValues:        &rv,
+		Item:                item,
+		ConditionExpression: &ce,
+	})
+	if err != nil {
+		if ae, ok := err.(awserr.RequestFailure); ok && ae.Code() == "ConditionalCheckFailedException" {
+			return errors.Wrap(err, "UserAlreadyExists")
+		} else {
+			return errors.Wrap(err, "Something went wrong while inserting the user")
+		}
+	}
+	return nil
+}
+
+func updateExistingSlackUser(id string, username string, subscribedLines []string) error {
+	idAv, _ := dynamodbattribute.Marshal(id)
+	usernameAv, _ := dynamodbattribute.Marshal(username)
+	subscribedLinesAv, _ := dynamodbattribute.Marshal(subscribedLines)
+	expressionAttributeValues := map[string]*dynamodb.AttributeValue{":valSubLines": subscribedLinesAv, ":username": usernameAv}
+	ue := "set username = :username, subscribedLines = list_append(subscribedLines, :valSubLines)"
+
+	_, err := svc.UpdateItem(&dynamodb.UpdateItemInput{
+		TableName:                 aws.String("slack-users"),
+		Key:                       map[string]*dynamodb.AttributeValue{"id": idAv},
+		UpdateExpression:          &ue,
+		ExpressionAttributeValues: expressionAttributeValues,
+	})
+
+	if err != nil {
+		return errors.Wrap(err, "UpdateFailed")
+	}
+	return nil
 }

@@ -49,6 +49,7 @@ func TestSlackStatusHandler_whenCalledToRetrieveAllLines(t *testing.T) {
 
 	data := url.Values{}
 	data.Set("token", "validToken123")
+	data.Set("text", "status")
 	var req *http.Request = httptest.NewRequest(http.MethodPost, "/api/slack/tubestatus/", bytes.NewBufferString(data.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
@@ -77,7 +78,7 @@ func TestSlackStatusHandler_whenCalledToRetrieveSingleLine(t *testing.T) {
 
 	data := url.Values{}
 	data.Set("token", "validToken123")
-	data.Add("text", "bakerloo")
+	data.Add("text", "status bakerloo")
 	var req *http.Request = httptest.NewRequest(http.MethodPost, "/api/slack/tubestatus/", bytes.NewBufferString(data.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
@@ -105,7 +106,7 @@ func TestSlackStatusHandler_whenCalledToRetrieveUnexistingLine_thenReturnNotFoun
 
 	data := url.Values{}
 	data.Set("token", "validToken123")
-	data.Add("text", "unknownLine")
+	data.Add("text", "status unknownLine")
 	var req *http.Request = httptest.NewRequest(http.MethodPost, "/api/slack/tubestatus/", bytes.NewBufferString(data.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))

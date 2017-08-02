@@ -17,14 +17,14 @@ type TubeService struct {
 func (s TubeService) GetStatusFor(lines []string) (map[string]tfl.Report, error) {
 	start := time.Now()
 	reports, err := s.Client.GetTubeStatus()
+	if err != nil {
+		return nil, err
+	}
 	go func() {
 		elapsed := time.Since(start)
 		msElapsed := elapsed / time.Millisecond
 		tflResponseLatencies.Set(float64(msElapsed))
 	}()
-	if err != nil {
-		return nil, err
-	}
 	reportsMap := tfl.ReportArrayToMap(reports)
 	if len(lines) == 0 {
 		return reportsMap, nil

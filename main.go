@@ -7,6 +7,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/boltdb/bolt"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/cors"
@@ -14,6 +17,7 @@ import (
 )
 
 var tokenStore Repository
+var svc *dynamodb.DynamoDB
 
 var listenPort = os.Getenv("PORT")
 
@@ -65,6 +69,11 @@ func init() {
 		fmt.Printf("BoltDB initiliased (%v), bucket created!\n", tokenStore)
 	}
 
+	// DynamoDB
+	sess := session.Must(session.NewSession())
+	svc = dynamodb.New(sess, aws.NewConfig().WithRegion("eu-west-1"))
+
+	// Prometheus
 	prometheus.MustRegister(httpResponsesTotal)
 	prometheus.MustRegister(slackRequestsTotal)
 	prometheus.MustRegister(tflResponseLatencies)

@@ -8,6 +8,12 @@ type slackResponse struct {
 	Attachments  []attachment `json:"attachments"`
 }
 
+func NewEphemeral() slackResponse {
+	return slackResponse{
+		ResponseType: "ephemeral",
+	}
+}
+
 type attachment struct {
 	Fallback string   `json:"fallback"`
 	Color    string   `json:"color"`
