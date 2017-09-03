@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"flag"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
@@ -20,6 +21,8 @@ var tokenStore Repository
 var svc *dynamodb.DynamoDB
 
 var listenPort = os.Getenv("PORT")
+var AppVersion string
+var Sha string
 
 const defaultPort = "1123"
 
@@ -56,7 +59,7 @@ var (
 
 var tubeService TflService = TubeService{tfl.NewCachedClient(120)}
 
-func init() {
+func initialise() {
 
 	if listenPort == "" {
 		listenPort = defaultPort
@@ -65,9 +68,9 @@ func init() {
 	err := dbInit()
 	if err != nil {
 		log.Fatal("Couldn't initialise DB", err)
-	} else {
-		fmt.Printf("BoltDB initiliased (%v), bucket created!\n", tokenStore)
+		return
 	}
+	fmt.Printf("BoltDB initiliased (%v), bucket created!\n", tokenStore)
 
 	// DynamoDB
 	sess := session.Must(session.NewSession())
@@ -81,6 +84,14 @@ func init() {
 
 func main() {
 
+	printVersion := flag.Bool("version", false, "Prints the version of this application")
+	flag.Parse()
+	if *printVersion {
+		fmt.Printf("Current version is: %s\nGit commit: %s", AppVersion, Sha)
+		return
+	}
+
+	initialise()
 	defer tokenStore.Close()
 
 	_, authorisedTokenSet = tokenStore.RetrieveAllTokens()

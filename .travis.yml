@@ -7,12 +7,12 @@ sudo: required
 before_script:
   - go get golang.org/x/tools/cmd/cover
   - go get github.com/mattn/goveralls
-script: go test -v -covermode=count -coverprofile=coverage.out
+script: go test -v ./... -covermode=count -coverprofile=coverage.out
 after_script:
   - goveralls -coverprofile=coverage.out -service=travis-ci -repotoken $COVERALLS_TOKEN
 before_deploy:
   - go get github.com/mitchellh/gox
-  - gox -ldflags "-X main.AppVersion=$TRAVIS_TAG -X main.Sha=$TRAVIS_COMMIT" -output "dist/hmrc-lib-upgrade-{{.OS}}-{{.Arch}}"
+  - gox -ldflags "-X main.AppVersion=$TRAVIS_TAG -X main.Sha=$TRAVIS_COMMIT" -output "dist/slack-tube-service-{{.OS}}-{{.Arch}}"
   - sudo chmod +x ./dist/*
 deploy:
   provider: releases
@@ -22,6 +22,12 @@ deploy:
   file: dist/*
   skip_cleanup: true
   on:
-    repo: thoeni/hmrc-lib-upgrade
+    repo: thoeni/slack-tube-service
     tags: true
     condition: "$TRAVIS_TAG =~ ^v[0-9]+(.[0-9]+)*"
+deploy:
+  provider: script
+  script: deploy_prod.sh
+  on:
+    repo: thoeni/slack-tube-service
+    branch: master
