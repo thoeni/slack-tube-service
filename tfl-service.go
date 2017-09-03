@@ -1,9 +1,10 @@
 package main
 
 import (
-	"github.com/thoeni/go-tfl"
 	"strings"
 	"time"
+
+	"github.com/thoeni/go-tfl"
 )
 
 type TflService interface {
@@ -28,10 +29,9 @@ func (s TubeService) GetStatusFor(lines []string) (map[string]tfl.Report, error)
 	reportsMap := tfl.ReportArrayToMap(reports)
 	if len(lines) == 0 {
 		return reportsMap, nil
-	} else {
-		filteredReportsMap := filter(reportsMap, lines)
-		return filteredReportsMap, nil
 	}
+	filteredReportsMap := filter(reportsMap, lines)
+	return filteredReportsMap, nil
 }
 
 func filter(reportsMap map[string]tfl.Report, lines []string) map[string]tfl.Report {
