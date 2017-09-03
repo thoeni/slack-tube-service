@@ -13,5 +13,6 @@ deployment:
       - go get github.com/mitchellh/gox
       - go get github.com/tcnksm/ghr
       - gox -osarch "linux/amd64" -ldflags "-X main.AppVersion=$CIRCLE_TAG -X main.Sha=$CIRCLE_SHA1" -output "./dist/slack-tube-service-{{.OS}}-{{.Arch}}"
-      - ghr -t $GITHUB_TOKEN -u $CIRCLE_PROJECT_USERNAME -r $CIRCLE_PROJECT_REPONAME --replace $CIRCLE_TAG ./dist/
+      - echo "ghr -t $GITHUB_TOKEN -u $CIRCLE_PROJECT_USERNAME -r $CIRCLE_PROJECT_REPONAME --replace ${CIRCLE_TAG} ./dist/"
+      - ghr -t $GITHUB_TOKEN -u $CIRCLE_PROJECT_USERNAME -r $CIRCLE_PROJECT_REPONAME --replace ${CIRCLE_TAG} ./dist/
       - sh deploy_prod.sh
