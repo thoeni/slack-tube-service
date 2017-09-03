@@ -1,4 +1,5 @@
 slack-tube-service
+vendor/
 .idea/*
 tokens.txt
 coverage.out
