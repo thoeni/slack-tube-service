@@ -6,9 +6,12 @@ test:
     - go test -v -covermode=count -coverprofile=coverage.out
   post:
     - goveralls -coverprofile=coverage.out -service=circle-ci -repotoken $COVERALLS_REPO_TOKEN
-
 deployment:
-  production:
-    branch: master
+  release:
+    tag: /^v[0-9]+(.[0-9]+)*/
     commands:
+      — go get github.com/mitchellh/gox
+      - go get github.com/tcnksm/ghr
+      — gox -ldflags "-X main.AppVersion=$CIRCLE_TAG -X main.Sha=$CIRCLE_SHA1" -output "dist/slack-tube-service-{{.OS}}-{{.Arch}}"
+      - ghr -t $GITHUB_TOKEN -u $CIRCLE_PROJECT_USERNAME -r $CIRCLE_PROJECT_REPONAME --replace $CIRCLE_TAG dist/
       - ./deploy_prod.sh
