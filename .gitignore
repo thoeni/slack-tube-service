@@ -7,3 +7,4 @@ coverage.out
 *.db
 tags
 .vscode
+dist
