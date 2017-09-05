@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"flag"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
@@ -57,7 +58,10 @@ var (
 	)
 )
 
-var tubeService TflService = TubeService{tfl.NewCachedClient(120)}
+var httpTimeout = 5 * time.Second
+var tubeService TflService = TubeService{
+	tfl.NewCachedClient(&http.Client{Timeout: httpTimeout}, 120),
+}
 
 func initialise() {
 

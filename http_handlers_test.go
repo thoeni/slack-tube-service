@@ -3,15 +3,16 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
 	"github.com/golang/mock/gomock"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/thoeni/go-tfl"
 	"github.com/thoeni/slack-tube-service/mocks"
-	"io/ioutil"
-	"net/http"
-	"net/http/httptest"
-	"testing"
 )
 
 const (
@@ -112,7 +113,7 @@ func TestLineStatusHandler_Integration_HappyPathAllLines(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	cachedTflClient := tfl.NewCachedClient(120)
+	cachedTflClient := tfl.NewCachedClient(http.DefaultClient, 120)
 	cachedTflClient.SetBaseURL(ts.URL + "/")
 	tubeService = TubeService{cachedTflClient}
 
@@ -137,10 +138,10 @@ func TestLineStatusHandler_Integration_HappyPathSingleLine(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	client := tfl.NewClient()
+	client := tfl.NewClient(http.DefaultClient)
 	client.SetBaseURL(ts.URL + "/")
 
-	cachedTflClient := tfl.NewCachedClient(120)
+	cachedTflClient := tfl.NewCachedClient(http.DefaultClient, 120)
 	cachedTflClient.SetBaseURL(ts.URL + "/")
 	tubeService = TubeService{cachedTflClient}
 
