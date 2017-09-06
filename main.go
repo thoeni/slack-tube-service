@@ -18,7 +18,7 @@ import (
 	"github.com/thoeni/go-tfl"
 )
 
-var tokenStore Repository
+var tokenStore TokenRepository
 var svc *dynamodb.DynamoDB
 
 var listenPort = os.Getenv("PORT")

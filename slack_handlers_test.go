@@ -165,7 +165,7 @@ func TestSlackStatusHandler_whenRequestInvalid_thenReturnBadRequest(t *testing.T
 	assert.Equal(t, 400, resp.StatusCode)
 }
 
-func newMockTokenStore(c *gomock.Controller, output []string, e error) Repository {
+func newMockTokenStore(c *gomock.Controller, output []string, e error) TokenRepository {
 	mockTokenStore := mocks.NewMockRepository(c)
 	mockTokenStore.EXPECT().RetrieveAllTokens().Return(e, output)
 	return mockTokenStore

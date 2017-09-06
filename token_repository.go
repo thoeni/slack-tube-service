@@ -12,7 +12,7 @@ import (
 
 var authorisedTokenSet []string
 
-type Repository interface {
+type TokenRepository interface {
 	RetrieveAllTokens() (error, []string)
 	AddToken(token string)
 	DeleteToken(token string)
