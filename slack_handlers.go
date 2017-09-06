@@ -73,12 +73,22 @@ func slackRequestHandler(w http.ResponseWriter, r *http.Request) {
 		sr, _ := subscribeCommand(slackCommandArgs, *slackReq)
 		w.WriteHeader(http.StatusOK)
 		encoder.Encode(sr)
+	case "version":
+		sr, _ := versionCommand(slackCommandArgs, *slackReq)
+		w.WriteHeader(http.StatusOK)
+		encoder.Encode(sr)
 	default:
 		sr := NewEphemeral()
 		sr.Text = fmt.Sprintf("Unrecognised command: %s", slackCommand)
 		w.WriteHeader(http.StatusOK)
 		encoder.Encode(sr)
 	}
+}
+
+func versionCommand(slackCommandArgs []string, slackRequest slackRequest) (*slackResponse, error) {
+	var r slackResponse = NewEphemeral()
+	r.Text = fmt.Sprintf("Slack Tube Service - %s [%s]", AppVersion, Sha)
+	return &r, nil
 }
 
 func statusCommand(slackCommandArgs []string, slackRequest slackRequest) (*slackResponse, error) {
@@ -123,7 +133,7 @@ func forCommand(slackCommandArgs []string, slackRequest slackRequest) (*slackRes
 	var r slackResponse = NewEphemeral()
 
 	user := slackCommandArgs[0]
-	id := fmt.Sprintf("%s-%s", slackRequest.TeamID, user)
+	id := fmt.Sprintf("%s-%s", slackRequest.TeamID, user[1:])
 
 	lines, err := getLinesFor(id)
 	if err != nil {
