@@ -65,6 +65,10 @@ func slackRequestHandler(w http.ResponseWriter, r *http.Request) {
 		sr, _ := statusCommand(slackCommandArgs, *slackReq)
 		w.WriteHeader(http.StatusOK)
 		encoder.Encode(sr)
+	case "for":
+		sr, _ := forCommand(slackCommandArgs, *slackReq)
+		w.WriteHeader(http.StatusOK)
+		encoder.Encode(sr)
 	case "subscribe":
 		sr, _ := subscribeCommand(slackCommandArgs, *slackReq)
 		w.WriteHeader(http.StatusOK)
@@ -111,6 +115,67 @@ func statusCommand(slackCommandArgs []string, slackRequest slackRequest) (*slack
 
 	r.Attachments = reportMapToSortedAttachmentsArray(reportsMap)
 	return &r, nil
+}
+
+// Returns the status for lines a specific user subscribed to
+func forCommand(slackCommandArgs []string, slackRequest slackRequest) (*slackResponse, error) {
+
+	var r slackResponse = NewEphemeral()
+
+	user := slackCommandArgs[0]
+	id := fmt.Sprintf("%s-%s", slackRequest.TeamID, user)
+
+	lines, err := getLinesFor(id)
+	if err != nil {
+		if err.Error() == "UserNotFound" {
+			r.Text = fmt.Sprintf("Couldn't find lines for user: %s", user)
+		} else {
+			r.Text = fmt.Sprintf("Error while retrieving lines for user: %s", user)
+		}
+		return &r, errors.Wrap(err, "GetUserError")
+	}
+
+	reportsMap, err := tubeService.GetStatusFor(lines)
+
+	if err != nil {
+		r.Text = "Error while retrieving information from TFL"
+		return &r, errors.Wrap(err, "TFLError")
+	} else if len(reportsMap) == 0 {
+		r.Text = "Not a recognised line."
+		return &r, errors.New("LineNotRecognised")
+	}
+
+	r.Attachments = reportMapToSortedAttachmentsArray(reportsMap)
+	return &r, nil
+}
+
+func getLinesFor(id string) ([]string, error) {
+	input := &dynamodb.GetItemInput{
+		Key: map[string]*dynamodb.AttributeValue{
+			"id": {
+				S: aws.String(id),
+			},
+		},
+		TableName: aws.String("slack-users"),
+	}
+
+	result, err := svc.GetItem(input)
+
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			return nil, aerr
+		} else {
+			return nil, fmt.Errorf(err.Error())
+		}
+	}
+
+	if len(result.Item) == 0 {
+		return nil, fmt.Errorf("UserNotFound")
+	}
+
+	var subscribedLines []string
+	dynamodbattribute.Unmarshal(result.Item["subscribedLines"], &subscribedLines)
+	return subscribedLines, nil
 }
 
 func reportMapToSortedAttachmentsArray(inputMap map[string]tfl.Report) []attachment {
