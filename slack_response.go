@@ -50,9 +50,9 @@ func mapTflStatuServerityToSlackSeverity(statusSeverity int) slackSeverity {
 	return severity[statusSeverity]
 }
 
-var danger = slackSeverity{"danger", ":rage:"}
-var warning = slackSeverity{"warning", ":warning:"}
-var good = slackSeverity{"good", ":grinning:"}
+var danger = slackSeverity{"danger", ":explody_parrot:"}
+var warning = slackSeverity{"warning", ":panic:"}
+var good = slackSeverity{"good", ":partyparrot:"}
 
 type slackSeverity struct {
 	Color string
