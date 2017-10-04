@@ -49,7 +49,11 @@ func forCommand(slackCommandArgs []string, slackRequest slackRequest) (*slackRes
 
 	var r slackResponse = NewEphemeral()
 
-	user := slackCommandArgs[0]
+	var user string = slackCommandArgs[0]
+	if strings.ToLower(user) == "me" {
+		user = slackRequest.Username
+	}
+
 	id := fmt.Sprintf("%s-%s", slackRequest.TeamID, user[1:])
 
 	lines, err := getLinesFor(id)
