@@ -51,7 +51,7 @@ func forCommand(slackCommandArgs []string, slackRequest slackRequest) (*slackRes
 
 	var user string = slackCommandArgs[0]
 	if strings.ToLower(user) == "me" {
-		user = slackRequest.Username
+		user = fmt.Sprintf("@%s", slackRequest.Username)
 	}
 
 	id := fmt.Sprintf("%s-%s", slackRequest.TeamID, user[1:])
