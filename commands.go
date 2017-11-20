@@ -8,6 +8,10 @@ import (
 	"strings"
 )
 
+func defaultCommand(slackCommandArgs []string, slackRequest slackRequest) (*slackResponse, error) {
+   statusCommand(slackCommandArgs, slackRequest)
+}
+
 func statusCommand(slackCommandArgs []string, slackRequest slackRequest) (*slackResponse, error) {
 
 	var r slackResponse = NewEphemeral()
