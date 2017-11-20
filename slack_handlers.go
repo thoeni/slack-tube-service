@@ -71,8 +71,16 @@ func slackRequestHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		encoder.Encode(sr)
 	default:
-		sr := NewEphemeral()
-		sr.Text = fmt.Sprintf("Unrecognised command: %s", slackCommand)
+		var sr slackResponse
+		var err error
+
+		defaultEnabled:= true // TODO: move to configuration
+		if defaultEnabled {
+			sr, err = defaultCommand(slackInput, *slackReq)
+		} else {
+			sr = NewEphemeral()
+			sr.Text = fmt.Sprintf("Unrecognised command: %s", slackCommand)
+		}
 		w.WriteHeader(http.StatusOK)
 		encoder.Encode(sr)
 	}
