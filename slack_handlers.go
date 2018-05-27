@@ -28,16 +28,24 @@ func slackRequestHandler(l *tubeServuceLambda, verb string, v url.Values) (event
 
 	var slackReq = slackRequestFrom(v)
 
-	if !isTokenValid(slackReq.Token) {
-		fmt.Printf("Invalid token in request: %v from postForm: %v", slackReq, v)
-		resp.StatusCode = http.StatusUnauthorized
-		slackResponseBody.Text = "Unauthorised"
-		b, _ := json.Marshal(slackResponseBody)
-		resp.Body = string(b)
-		return resp, errors.New("Unauthorised")
-	}
+	// TODO: Enable this once BoldDB is moved to DynamoDB
+	//if !isTokenValid(slackReq.Token) {
+	//	fmt.Printf("Invalid token in request: %v from postForm: %v", slackReq, v)
+	//	resp.StatusCode = http.StatusUnauthorized
+	//	slackResponseBody.Text = "Unauthorised"
+	//	b, _ := json.Marshal(slackResponseBody)
+	//	resp.Body = string(b)
+	//	return resp, errors.New("Unauthorised")
+	//}
 
-	if len(slackReq.Text) == 0 {
+	fmt.Println("Unmarshalled SlackRequest is", slackReq)
+
+	slackInput := strings.Split(slackReq.Text[0], " ")
+
+	slackCommand := slackInput[0]
+	slackCommandArgs := slackInput[1:]
+
+	if len(slackCommand) == 0 {
 		sr := NewEphemeral()
 		sr.Text = fmt.Sprint("This slack integration provides four options:\n\n-`/tube status` or `/tube status <lineName>` for example `/tube status bakerloo`\n-`/tube subscribe <lineName>`, for example `/tube subscribe bakerloo`\n-`/tube for <username>`, for example `/tube for @jlennon`\n-`/tube version`\n\nFor more details please visit <https://thoeni.io/project/slack-tube-service/|slack-tube-service project page>")
 		resp.StatusCode = http.StatusOK
@@ -45,10 +53,9 @@ func slackRequestHandler(l *tubeServuceLambda, verb string, v url.Values) (event
 		resp.Body = string(b)
 		return resp, nil
 	}
-	slackInput := strings.Split(slackReq.Text[0], " ")
 
-	slackCommand := slackInput[0]
-	slackCommandArgs := slackInput[1:]
+	fmt.Println("Slack command is:", slackCommand)
+	fmt.Println("Slack command args are:", slackCommandArgs)
 
 	switch slackCommand {
 	case "status":
@@ -100,12 +107,12 @@ func slackTokenRequestHandler(verb string, token string, v url.Values) (events.A
 func slackRequestFrom(v url.Values) slackRequest {
 	return slackRequest{
 		Token:       v.Get("token"),
-		TeamID:      v.Get("teamID"),
-		TeamDomain:  v.Get("teamDomain"),
-		ChannelID:   v.Get("channelID"),
-		ChannelName: v.Get("channelName"),
-		UserID:      v.Get("userID"),
-		Username:    v.Get("username"),
+		TeamID:      v.Get("team_id"),
+		TeamDomain:  v.Get("team_domain"),
+		ChannelID:   v.Get("channel_id"),
+		ChannelName: v.Get("channel_name"),
+		UserID:      v.Get("user_id"),
+		Username:    v.Get("user_name"),
 		Command:     v.Get("command"),
 		Text:        []string{v.Get("text")},
 		ResponseURL: v.Get("responseURL"),

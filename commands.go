@@ -6,14 +6,14 @@ import (
 	tfllib "github.com/thoeni/go-tfl"
 	"sort"
 	"strings"
-	"github.com/thoeni/slack-tube-service/tfl"
+	"github.com/thoeni/slack-tube-service/tflondon"
 	"github.com/thoeni/slack-tube-service/lines"
 	"github.com/thoeni/slack-tube-service/users"
 )
 
-func statusCommand(tubeService tfl.Service, slackCommandArgs []string, slackRequest slackRequest) (*slackResponse, error) {
+func statusCommand(tubeService tflondon.Service, slackCommandArgs []string, slackRequest slackRequest) (*slackResponse, error) {
 
-	var r slackResponse = NewEphemeral()
+	var r = NewEphemeral()
 
 	tubeLine := strings.Join(slackCommandArgs, " ")
 
@@ -39,11 +39,16 @@ func statusCommand(tubeService tfl.Service, slackCommandArgs []string, slackRequ
 }
 
 // Returns the status for lines a specific user subscribed to
-func forCommand(tubeService tfl.Service, linesRepo lines.Repo, slackCommandArgs []string, slackRequest slackRequest) (*slackResponse, error) {
+func forCommand(tubeService tflondon.Service, linesRepo lines.Repo, slackCommandArgs []string, slackRequest slackRequest) (*slackResponse, error) {
 
-	var r slackResponse = NewEphemeral()
+	var r = NewEphemeral()
 
-	var user string = slackCommandArgs[0]
+	if len(slackCommandArgs) == 0 {
+		r.Text = "User name must be provided (e.g. `@john`)"
+		return &r, errors.New("no user specified")
+	}
+
+	var user = slackCommandArgs[0]
 	if strings.ToLower(user) == "me" {
 		user = fmt.Sprintf("@%s", slackRequest.Username)
 	}
@@ -53,7 +58,7 @@ func forCommand(tubeService tfl.Service, linesRepo lines.Repo, slackCommandArgs 
 	lines, err := linesRepo.GetLinesFor(id)
 	if err != nil {
 		if err.Error() == "UserNotFound" {
-			r.Text = fmt.Sprintf("Couldn't find lines for user: %s", user)
+			r.Text = fmt.Sprintf("Couldn't find lines for user: %s", id)
 		} else {
 			r.Text = fmt.Sprintf("Error while retrieving lines for user: %s", user)
 		}
@@ -74,9 +79,9 @@ func forCommand(tubeService tfl.Service, linesRepo lines.Repo, slackCommandArgs 
 	return &r, nil
 }
 
-func subscribeCommand(tubeService tfl.Service, usersRepo users.Repo, slackCommandArgs []string, slackRequest slackRequest) (*slackResponse, error) {
+func subscribeCommand(tubeService tflondon.Service, usersRepo users.Repo, slackCommandArgs []string, slackRequest slackRequest) (*slackResponse, error) {
 
-	var r slackResponse = NewEphemeral()
+	var r = NewEphemeral()
 
 	if len(slackCommandArgs) == 0 {
 		r.Text = fmt.Sprintf("A line to subscribe to must be specified :thinking_face:. For example `/tube subscribe bakerloo`")
@@ -130,7 +135,7 @@ func reportMapToSortedAttachmentsArray(inputMap map[string]tfllib.Report) []atta
 }
 
 func versionCommand(slackCommandArgs []string, slackRequest slackRequest) (*slackResponse, error) {
-	var r slackResponse = NewEphemeral()
+	var r = NewEphemeral()
 	r.Text = fmt.Sprintf("Slack Tube Service - %s [%s]", AppVersion, Sha)
 	return &r, nil
 }

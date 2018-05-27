@@ -33,6 +33,7 @@ func (r dynamodbLinesRepo) GetLinesFor(id string) ([]string, error) {
 		TableName: aws.String("slack-users"),
 	}
 
+	fmt.Println("Calling for", input)
 	result, err := r.svc.GetItem(input)
 
 	if err != nil {

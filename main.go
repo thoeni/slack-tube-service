@@ -11,15 +11,19 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/thoeni/slack-tube-service/lines"
-	"github.com/thoeni/slack-tube-service/tfl"
+	"github.com/thoeni/slack-tube-service/tflondon"
 	"github.com/thoeni/slack-tube-service/users"
+	"fmt"
 )
 
 var tokenStore TokenRepository
 var svc *dynamodb.DynamoDB
 
+var AppVersion string
+var Sha string
+
 type tubeServuceLambda struct {
-	tfl       tfl.Service
+	tfl       tflondon.Service
 	userRepo  users.Repo
 	linesRepo lines.Repo
 }
@@ -27,12 +31,20 @@ type tubeServuceLambda struct {
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	l := NewLambda()
 
+	fmt.Println("Received:", request)
+
 	query := request.Body
+
+	fmt.Println("Query:", query)
+
 	v, err := url.ParseQuery(query)
+	fmt.Println("Values:", v)
 
 	if err != nil {
+		fmt.Println("Error when reading values:", err)
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusBadRequest,
+			Body: err.Error(),
 		}, nil
 	}
 
@@ -59,7 +71,7 @@ func NewLambda() *tubeServuceLambda {
 	svc = dynamodb.New(sess, aws.NewConfig().WithRegion("eu-west-1"))
 
 	return &tubeServuceLambda{
-		tfl:       tfl.NewService(),
+		tfl:       tflondon.NewService(),
 		userRepo:  users.NewRepoWithClient(svc),
 		linesRepo: lines.NewRepoWithClient(svc),
 	}
