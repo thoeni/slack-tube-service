@@ -1,31 +1,33 @@
-package main
+package tfl
 
 import (
 	"strings"
-	"time"
-
 	"github.com/thoeni/go-tfl"
+	"net/http"
+	"time"
 )
 
-type TflService interface {
+var httpTimeout = 5 * time.Second
+
+type Service interface {
 	GetStatusFor(lines []string) (map[string]tfl.Report, error)
 }
 
-type TubeService struct {
+type service struct {
 	Client tfl.Client
 }
 
-func (s TubeService) GetStatusFor(lines []string) (map[string]tfl.Report, error) {
-	start := time.Now()
+func NewService() *service {
+	return &service{
+		tfl.NewCachedClient(&http.Client{Timeout: httpTimeout}, 120),
+	}
+}
+
+func (s service) GetStatusFor(lines []string) (map[string]tfl.Report, error) {
 	reports, err := s.Client.GetTubeStatus()
 	if err != nil {
 		return nil, err
 	}
-	go func() {
-		elapsed := time.Since(start)
-		msElapsed := elapsed / time.Millisecond
-		tflResponseLatencies.Set(float64(msElapsed))
-	}()
 	reportsMap := tfl.ReportArrayToMap(reports)
 	if len(lines) == 0 {
 		return reportsMap, nil

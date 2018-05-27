@@ -1,52 +1,30 @@
-package main
+package users
 
 import (
-	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/pkg/errors"
+	"github.com/aws/aws-sdk-go/aws/session"
 )
 
-type slackUserItem struct {
-	ID              string   `dynamodbav:"id""`
-	Username        string   `dynamodbav:"username""`
-	SubscribedLines []string `dynamodbav:"subscribedLines""`
+type dynamodbUserRepo struct {
+	svc *dynamodb.DynamoDB
 }
 
-func getLinesFor(id string) ([]string, error) {
-	input := &dynamodb.GetItemInput{
-		Key: map[string]*dynamodb.AttributeValue{
-			"id": {
-				S: aws.String(id),
-			},
-		},
-		TableName: aws.String("slack-users"),
-	}
-
-	result, err := svc.GetItem(input)
-
-	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			return nil, aerr
-		} else {
-			return nil, fmt.Errorf(err.Error())
-		}
-	}
-
-	if len(result.Item) == 0 {
-		return nil, fmt.Errorf("UserNotFound")
-	}
-
-	var subscribedLines []string
-	dynamodbattribute.Unmarshal(result.Item["subscribedLines"], &subscribedLines)
-	return subscribedLines, nil
+func NewRepo() *dynamodbUserRepo {
+	s := session.Must(session.NewSession())
+	return &dynamodbUserRepo{dynamodb.New(s, aws.NewConfig().WithRegion("eu-west-1"))}
 }
 
-func putNewSlackUser(id string, username string, subscribedLines []string) error {
+func NewRepoWithClient(svc *dynamodb.DynamoDB) *dynamodbUserRepo {
+	return &dynamodbUserRepo{svc}
+}
 
-	item, err := dynamodbattribute.MarshalMap(slackUserItem{
+func (r *dynamodbUserRepo) PutNewSlackUser(id string, username string, subscribedLines []string) error {
+
+	item, err := dynamodbattribute.MarshalMap(User{
 		ID:              id,
 		Username:        username,
 		SubscribedLines: subscribedLines,
@@ -58,7 +36,7 @@ func putNewSlackUser(id string, username string, subscribedLines []string) error
 	ce := "attribute_not_exists(id)"
 	rv := "ALL_OLD"
 
-	_, err = svc.PutItem(&dynamodb.PutItemInput{
+	_, err = r.svc.PutItem(&dynamodb.PutItemInput{
 		TableName:           aws.String("slack-users"),
 		ReturnValues:        &rv,
 		Item:                item,
@@ -74,14 +52,14 @@ func putNewSlackUser(id string, username string, subscribedLines []string) error
 	return nil
 }
 
-func updateExistingSlackUser(id string, username string, subscribedLines []string) error {
+func (r *dynamodbUserRepo) UpdateExistingSlackUser(id string, username string, subscribedLines []string) error {
 	idAv, _ := dynamodbattribute.Marshal(id)
 	usernameAv, _ := dynamodbattribute.Marshal(username)
 	subscribedLinesAv, _ := dynamodbattribute.Marshal(subscribedLines)
 	expressionAttributeValues := map[string]*dynamodb.AttributeValue{":valSubLines": subscribedLinesAv, ":username": usernameAv}
 	ue := "set username = :username, subscribedLines = list_append(subscribedLines, :valSubLines)"
 
-	_, err := svc.UpdateItem(&dynamodb.UpdateItemInput{
+	_, err := r.svc.UpdateItem(&dynamodb.UpdateItemInput{
 		TableName:                 aws.String("slack-users"),
 		Key:                       map[string]*dynamodb.AttributeValue{"id": idAv},
 		UpdateExpression:          &ue,

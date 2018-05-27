@@ -3,25 +3,19 @@ package main
 import (
 	"fmt"
 	"github.com/pkg/errors"
-	"github.com/thoeni/go-tfl"
+	tfllib "github.com/thoeni/go-tfl"
 	"sort"
 	"strings"
+	"github.com/thoeni/slack-tube-service/tfl"
+	"github.com/thoeni/slack-tube-service/lines"
+	"github.com/thoeni/slack-tube-service/users"
 )
 
-func statusCommand(slackCommandArgs []string, slackRequest slackRequest) (*slackResponse, error) {
+func statusCommand(tubeService tfl.Service, slackCommandArgs []string, slackRequest slackRequest) (*slackResponse, error) {
 
 	var r slackResponse = NewEphemeral()
 
 	tubeLine := strings.Join(slackCommandArgs, " ")
-	teamDomain := strings.Replace(slackRequest.TeamDomain, " ", "", -1)
-
-	go func() {
-		tubeLineLabel := "all"
-		if tubeLine != "" {
-			tubeLineLabel = tubeLine
-		}
-		slackRequestsTotal.WithLabelValues(teamDomain, tubeLineLabel).Inc()
-	}()
 
 	r.Text = fmt.Sprintf("Slack Tube Service")
 
@@ -45,7 +39,7 @@ func statusCommand(slackCommandArgs []string, slackRequest slackRequest) (*slack
 }
 
 // Returns the status for lines a specific user subscribed to
-func forCommand(slackCommandArgs []string, slackRequest slackRequest) (*slackResponse, error) {
+func forCommand(tubeService tfl.Service, linesRepo lines.Repo, slackCommandArgs []string, slackRequest slackRequest) (*slackResponse, error) {
 
 	var r slackResponse = NewEphemeral()
 
@@ -56,7 +50,7 @@ func forCommand(slackCommandArgs []string, slackRequest slackRequest) (*slackRes
 
 	id := fmt.Sprintf("%s-%s", slackRequest.TeamID, user[1:])
 
-	lines, err := getLinesFor(id)
+	lines, err := linesRepo.GetLinesFor(id)
 	if err != nil {
 		if err.Error() == "UserNotFound" {
 			r.Text = fmt.Sprintf("Couldn't find lines for user: %s", user)
@@ -80,7 +74,7 @@ func forCommand(slackCommandArgs []string, slackRequest slackRequest) (*slackRes
 	return &r, nil
 }
 
-func subscribeCommand(slackCommandArgs []string, slackRequest slackRequest) (*slackResponse, error) {
+func subscribeCommand(tubeService tfl.Service, usersRepo users.Repo, slackCommandArgs []string, slackRequest slackRequest) (*slackResponse, error) {
 
 	var r slackResponse = NewEphemeral()
 
@@ -93,16 +87,16 @@ func subscribeCommand(slackCommandArgs []string, slackRequest slackRequest) (*sl
 	username := slackRequest.Username
 	subscribedLines := []string{strings.Join(slackCommandArgs, " ")}
 
-	if _, err := statusCommand(slackCommandArgs, slackRequest); err != nil {
+	if _, err := statusCommand(tubeService, slackCommandArgs, slackRequest); err != nil {
 		if strings.Contains(err.Error(), "LineNotRecognised") {
 			r.Text = fmt.Sprintf("Line %s is not a recognised line, therefore subscription is not available", subscribedLines[0])
 			return &r, errors.Wrap(err, "SubscriptionNotAvailable")
 		}
 	}
 
-	if err := putNewSlackUser(id, username, subscribedLines); err != nil {
+	if err := usersRepo.PutNewSlackUser(id, username, subscribedLines); err != nil {
 		if strings.Contains(err.Error(), "UserAlreadyExists") {
-			if err := updateExistingSlackUser(id, username, subscribedLines); err != nil {
+			if err := usersRepo.UpdateExistingSlackUser(id, username, subscribedLines); err != nil {
 				r.Text = fmt.Sprintf("Error while updating subscriptions for user %s", username)
 				return &r, nil
 			}
@@ -117,7 +111,7 @@ func subscribeCommand(slackCommandArgs []string, slackRequest slackRequest) (*sl
 	return &r, nil
 }
 
-func reportMapToSortedAttachmentsArray(inputMap map[string]tfl.Report) []attachment {
+func reportMapToSortedAttachmentsArray(inputMap map[string]tfllib.Report) []attachment {
 	keys := make([]string, len(inputMap))
 	attachments := make([]attachment, len(inputMap))
 	i := 0

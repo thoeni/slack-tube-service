@@ -1,127 +1,66 @@
 package main
 
 import (
-	"fmt"
-	"log"
 	"net/http"
-	"os"
-	"time"
+	"net/url"
+	"strings"
 
-	"flag"
-
+	"github.com/aws/aws-lambda-go/events"
+	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/boltdb/bolt"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/rs/cors"
-	"github.com/thoeni/go-tfl"
+	"github.com/thoeni/slack-tube-service/lines"
+	"github.com/thoeni/slack-tube-service/tfl"
+	"github.com/thoeni/slack-tube-service/users"
 )
 
 var tokenStore TokenRepository
 var svc *dynamodb.DynamoDB
 
-var listenPort = os.Getenv("PORT")
-var AppVersion string
-var Sha string
-
-const defaultPort = "1123"
-
-var (
-	httpResponsesTotal = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: "production",
-			Subsystem: "http_server",
-			Name:      "http_requests_total",
-			Help:      "The count of http responses issued, classified by method and requestURI.",
-		},
-		[]string{"method", "requestURI"},
-	)
-
-	slackRequestsTotal = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: "production",
-			Subsystem: "http_server",
-			Name:      "slack_requests_total",
-			Help:      "The count of http requests received for tube status, classified by slackDomain and tubeLine.",
-		},
-		[]string{"domain", "tubeLine"},
-	)
-
-	tflResponseLatencies = prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Namespace: "production",
-			Subsystem: "tfl_client",
-			Name:      "response_latencies",
-			Help:      "Distribution of http response latencies (ms), classified by code and method.",
-		},
-	)
-)
-
-var httpTimeout = 5 * time.Second
-var tubeService TflService = TubeService{
-	tfl.NewCachedClient(&http.Client{Timeout: httpTimeout}, 120),
+type tubeServuceLambda struct {
+	tfl       tfl.Service
+	userRepo  users.Repo
+	linesRepo lines.Repo
 }
 
-func initialise() {
+func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	l := NewLambda()
 
-	if listenPort == "" {
-		listenPort = defaultPort
-	}
+	query := request.Body
+	v, err := url.ParseQuery(query)
 
-	err := dbInit()
 	if err != nil {
-		log.Fatal("Couldn't initialise DB", err)
-		return
+		return events.APIGatewayProxyResponse{
+			StatusCode: http.StatusBadRequest,
+		}, nil
 	}
-	fmt.Printf("BoltDB initiliased (%v), bucket created!\n", tokenStore)
 
+	switch request.Path {
+	case "/api/slack/tubestatus/":
+		return slackRequestHandler(l, request.HTTPMethod, v)
+	case "/api/slack/token/":
+		token := strings.Replace(request.Path, "/api/slack/token/", "", -1)
+		return slackTokenRequestHandler(request.HTTPMethod, token, v)
+	default:
+		return events.APIGatewayProxyResponse{
+			StatusCode: http.StatusBadRequest,
+		}, nil
+	}
+}
+
+func main() {
+	lambda.Start(handler)
+}
+
+func NewLambda() *tubeServuceLambda {
 	// DynamoDB
 	sess := session.Must(session.NewSession())
 	svc = dynamodb.New(sess, aws.NewConfig().WithRegion("eu-west-1"))
 
-	// Prometheus
-	prometheus.MustRegister(httpResponsesTotal)
-	prometheus.MustRegister(slackRequestsTotal)
-	prometheus.MustRegister(tflResponseLatencies)
-}
-
-func main() {
-
-	printVersion := flag.Bool("version", false, "Prints the version of this application")
-	flag.Parse()
-	if *printVersion {
-		fmt.Printf("Current version is: %s\nGit commit: %s", AppVersion, Sha)
-		return
+	return &tubeServuceLambda{
+		tfl:       tfl.NewService(),
+		userRepo:  users.NewRepoWithClient(svc),
+		linesRepo: lines.NewRepoWithClient(svc),
 	}
-
-	initialise()
-	defer tokenStore.Close()
-
-	_, authorisedTokenSet = tokenStore.RetrieveAllTokens()
-	router := newRouter()
-	fmt.Println("Ready, listening on port", listenPort)
-	log.Fatal(http.ListenAndServe(":"+listenPort, cors.Default().Handler(router)))
-}
-
-func dbInit() error {
-
-	db, err := bolt.Open("slack-tube-service.db", 0600, &bolt.Options{Timeout: 1 * time.Second})
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if err := db.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists([]byte("token"))
-		if err != nil {
-			return fmt.Errorf("create bucket: %s", err)
-		}
-		return nil
-	}); err != nil {
-		return err
-	}
-
-	tokenStore = boltRepository{boltDB: db}
-
-	return nil
 }

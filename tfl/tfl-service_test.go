@@ -1,4 +1,4 @@
-package main
+package tfl
 
 import (
 	"github.com/golang/mock/gomock"
@@ -108,9 +108,9 @@ func TestFilter(t *testing.T) {
 	assert.Equal(t, 1, actualLength, "Actual length was %d instead of expected 1", actualLength)
 }
 
-func initialiseServiceWithTflClientReponse(t *testing.T, r []tfl.Report, e error) (TubeService, *gomock.Controller) {
+func initialiseServiceWithTflClientReponse(t *testing.T, r []tfl.Report, e error) (service, *gomock.Controller) {
 	mockCtrl := gomock.NewController(t)
 	mockTflClient := mocks.NewMockClient(mockCtrl)
 	mockTflClient.EXPECT().GetTubeStatus().Return(r, e)
-	return TubeService{Client: mockTflClient}, mockCtrl
+	return service{Client: mockTflClient}, mockCtrl
 }
